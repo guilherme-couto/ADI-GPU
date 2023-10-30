@@ -1,0 +1,10 @@
+S1 velocity: 0.579897 m/s
+S2 begin: 120.0 ms
+PDE/ODE ratio: 1
+ODE execution time: 0.220313 seconds
+PDE execution time: 0.895739 seconds
+Writing time: 0.000116 seconds
+Total execution time with writings: 1.119301 seconds
+
+1st Thomas algorithm (+ transpose) execution time: 0.442835 seconds
+2nd Thomas algorithm execution time: 0.452782 seconds
