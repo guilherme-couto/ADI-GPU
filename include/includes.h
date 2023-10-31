@@ -12,7 +12,8 @@
 #define BDIMY 16
 
 // Define real type
-typedef float real;
+typedef double real;
+#define REAL_TYPE "double"
 
 #include <stdio.h>
 #include <stdlib.h>

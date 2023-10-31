@@ -257,8 +257,11 @@ void createDirectories(char *pathToSaveData, char *method, char *cellModel, char
 {
     char command[] = "mkdir -p";
     char aux[MAX_STRING_SIZE];
-    system("mkdir -p ./simulation-files/real");
-    sprintf(pathToSaveData, "%s/%s", "./simulation-files/real", mode);
+    char path[] = "./simulation-files/";
+    strcat(path, REAL_TYPE);
+    sprintf(aux, "%s %s", command, path);
+    system(aux);
+    sprintf(pathToSaveData, "%s/%s", path, mode);
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
     sprintf(pathToSaveData, "%s/%.3lf", pathToSaveData, deltax);
