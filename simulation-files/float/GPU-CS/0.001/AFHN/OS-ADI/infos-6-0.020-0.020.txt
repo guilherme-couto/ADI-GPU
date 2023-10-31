@@ -1,0 +1,20 @@
+S1 velocity: 0.592885 m/s
+S2 begin: 120.0 ms
+PDE/ODE ratio: 1
+ODE execution time: 54.017578 seconds
+PDE execution time: 136.580078 seconds
+Writing time: 0.000000 seconds
+Total execution time with writings: 190.615234 seconds
+
+Number of blocks: 20
+Block size: 128
+1st Thomas algorithm time: 45.697266 seconds
+2nd Thomas algorithm time: 42.869141 seconds
+Transpose time: 0.599609 seconds
+1st memory copy time: 21.128906 seconds
+2nd memory copy time: 0.000000 seconds
+3rd memory copy time: 0.000000 seconds
+4th memory copy time: 26.277344 seconds
+Total memory copy time: 47.406250 seconds
+
+cusparseDgtsv2_bufferSizeExt = 32833536
