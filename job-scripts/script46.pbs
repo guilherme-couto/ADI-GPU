@@ -17,4 +17,4 @@
 cd $PBS_O_WORKDIR
 
 # Launch executable (./main <num_threads> <delta_t (ms)> <delta_x (cm)> <(CPU or GPU)> <ADI or OS-ADI> <(0 or 1)> <(0 or 1)> <(0 or 1)>)
-./main 128 0.08 0.010 CPU OS-ADI 0 0 0
+./main 128 0.02 0.001 CPU OS-ADI 0 0 0

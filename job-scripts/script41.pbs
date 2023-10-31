@@ -10,11 +10,11 @@
 #PBS -l walltime=10:00
 
 # Set the number of nodes and processes per node
-#PBS -l nodes=1:ppn=64
+#PBS -l nodes=1:ppn=16
 #−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−−
 
 # Change to submission directory
 cd $PBS_O_WORKDIR
 
 # Launch executable (./main <num_threads> <delta_t (ms)> <delta_x (cm)> <(CPU or GPU)> <ADI or OS-ADI> <(0 or 1)> <(0 or 1)> <(0 or 1)>)
-./main 64 0.02 0.010 GPU OS-ADI 0 0 0
+./main 16 0.02 0.001 GPU OS-ADI 0 0 0

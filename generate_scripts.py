@@ -6,7 +6,7 @@ import math
 # Possible parameters
 dxs = ['0.020', '0.010', '0.002', '0.001']
 numbers_threads = [6, 8, 16, 32, 64, 128]
-dts = [0.02, 0.08]
+dts = [0.02]
 methods = ['OS-ADI']
 modes = ['CPU', 'GPU']
 
