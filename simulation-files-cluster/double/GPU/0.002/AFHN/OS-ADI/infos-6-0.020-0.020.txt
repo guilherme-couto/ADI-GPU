@@ -1,0 +1,18 @@
+S1 velocity: 0.592885 m/s
+S2 begin: 120.0 ms
+PDE/ODE ratio: 1
+ODE execution time: 39.221381 seconds
+PDE execution time: 32.629633 seconds
+Writing time: 0.000559 seconds
+Total execution time with writings: 71.870262 seconds
+
+Number of blocks: 10
+Block size: 128
+1st Thomas algorithm time: 6.326194 seconds
+2nd Thomas algorithm time: 5.820123 seconds
+Transpose time: 0.174352 seconds
+1st memory copy time: 7.812472 seconds
+2nd memory copy time: 0.000000 seconds
+3rd memory copy time: 0.000000 seconds
+4th memory copy time: 12.461619 seconds
+Total memory copy time: 20.274091 seconds

@@ -477,11 +477,11 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
     char pathToSaveData[MAX_STRING_SIZE];
     if (haveFibrosis)
     {
-        createDirectories(pathToSaveData, method, "AFHN-Fibro", "GPU-CS");
+        createDirectories(pathToSaveData, method, "AFHN-Fibro", "GPU");
     }
     else
     {
-        createDirectories(pathToSaveData, method, "AFHN", "GPU-CS");
+        createDirectories(pathToSaveData, method, "AFHN", "GPU");
     }
 
     // File pointers
@@ -540,7 +540,7 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
     printf("All cudaMallocs done!\n");
 
     // Prefactorization
-    //prefactorizationThomasAlgorithm(la, lb, lc, N);
+    prefactorizationThomasAlgorithm(la, lb, lc, N);
 
     // Copy memory of diagonals from host to device
     cudaStatus1 = cudaMemcpy(d_la, la, N * sizeof(real), cudaMemcpyHostToDevice);
@@ -554,20 +554,20 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
 
     // Initialize cuSPARSE
     
-	cusparseHandle_t handle;
-    cusparseCreate(&handle);
-    size_t buffer_size_in_bytes = 0;
-    if (cusparseDgtsv2_nopivot_bufferSizeExt(handle, N, N, d_la, d_lb, d_lc, d_rightside, N, &buffer_size_in_bytes))
-    {
-        printf("Determining temporary buffer size failed\n");
-    }
-    //buffer_size_in_bytes = buffer_size_in_bytes + 128;
-    //printf("cusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);
-    void * p_buffer;
-    if (cudaMalloc(&p_buffer, buffer_size_in_bytes))
-    {
-        printf("Allocating temprary buffer failed");
-    }
+	// cusparseHandle_t handle;
+    // cusparseCreate(&handle);
+    // size_t buffer_size_in_bytes = 0;
+    // if (cusparseDgtsv2_nopivot_bufferSizeExt(handle, N, N, d_la, d_lb, d_lc, d_rightside, N, &buffer_size_in_bytes))
+    // {
+    //     printf("Determining temporary buffer size failed\n");
+    // }
+    // //buffer_size_in_bytes = buffer_size_in_bytes + 128;
+    // //printf("cusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);
+    // void * p_buffer;
+    // if (cudaMalloc(&p_buffer, buffer_size_in_bytes))
+    // {
+    //     printf("Allocating temprary buffer failed");
+    // }
     
 
 
@@ -646,11 +646,11 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
                         
             // Call the kernel
             start1stThomas = omp_get_wtime();
-            //parallelKernel1<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
-            if (cusparseDgtsv2_nopivot(handle, N, N, d_la, d_lb, d_lc, d_rightside, N, p_buffer))
-            {
-                printf("Solving TDS1 failed!\n");
-            }
+            parallelKernel1<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            // if (cusparseDgtsv2_nopivot(handle, N, N, d_la, d_lb, d_lc, d_rightside, N, p_buffer))
+            // {
+            //     printf("Solving TDS1 failed!\n");
+            // }
             cudaDeviceSynchronize();
             finish1stThomas = omp_get_wtime();
             elapsed1stThomas += finish1stThomas - start1stThomas;
@@ -665,11 +665,11 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             start2ndThomas = omp_get_wtime();
-            //parallelKernel1<<<numBlocks, blockSize>>>(d_solution, N, d_la, d_lb, d_lc);
-            if (cusparseDgtsv2_nopivot(handle, N, N, d_la, d_lb, d_lc, d_solution, N, p_buffer))
-            {
-                printf("Solving TDS2 failed!\n");
-            }
+            parallelKernel1<<<numBlocks, blockSize>>>(d_solution, N, d_la, d_lb, d_lc);
+            // if (cusparseDgtsv2_nopivot(handle, N, N, d_la, d_lb, d_lc, d_solution, N, p_buffer))
+            // {
+            //     printf("Solving TDS2 failed!\n");
+            // }
             cudaDeviceSynchronize();
             finish2ndThomas = omp_get_wtime();
             elapsed2ndThomas += finish2ndThomas - start2ndThomas;
@@ -754,7 +754,7 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
     fprintf(fpInfos, "4th memory copy time: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
-    fprintf(fpInfos, "\ncusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);
+    // fprintf(fpInfos, "\ncusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);
 
     if (haveFibrosis)
     {
@@ -810,7 +810,7 @@ void runMethodGPU(bool options[], char *method, real deltat, int numberThreads, 
     cudaFree(d_la);
     cudaFree(d_lb);
     cudaFree(d_lc);
-    cudaFree(p_buffer);
+    // cudaFree(p_buffer);
 
 }
 
