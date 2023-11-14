@@ -225,7 +225,7 @@ void runMethodCPU(bool options[], char *method, real deltat, int numberThreads, 
                 // Resolve PDEs (Diffusion)
                 // 1st: Implicit y-axis diffusion (lines)
                 #pragma omp barrier
-                #pragma omp for nowait
+                #pragma omp for
                 for (i = 0; i < N; i++)
                 {
                     // Check if i is in fibrotic region
@@ -255,7 +255,7 @@ void runMethodCPU(bool options[], char *method, real deltat, int numberThreads, 
 
                 // 2nd: Implicit x-axis diffusion (columns)
                 #pragma omp barrier
-                #pragma omp for nowait
+                #pragma omp for
                 for (i = 0; i < N; i++)
                 {
                     // Check if i is in fibrotic region
