@@ -62,11 +62,11 @@ int main(int argc, char *argv[])
     {
         if (strcmp(mode, "CPU") == 0)
         {
-            runMethodCPU(options, method, deltat, numberThreads, delta_x);
+            runAllinCPU(options, method, deltat, numberThreads, delta_x);
         }
         else if (strcmp(mode, "GPU") == 0)
         {
-            runMethodGPU(options, method, deltat, numberThreads, delta_x);
+            runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x);
         } 
         resetSimulationParameters();
     }
@@ -85,11 +85,11 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runMethodCPU(options, method, deltat, numberThreads, delta_x);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
-                runMethodGPU(options, method, deltat, numberThreads, delta_x);
+                runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x);
             }
         }
         // Update S2 begin
@@ -99,11 +99,11 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runMethodCPU(options, method, deltat, numberThreads, delta_x);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
-                runMethodGPU(options, method, deltat, numberThreads, delta_x);
+                runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x);
             }
         }
     }

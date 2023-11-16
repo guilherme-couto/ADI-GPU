@@ -3,7 +3,7 @@
 
 #include "includes.h"
 
-__global__ void parallelKernel1(real *d, unsigned long N, real *la, real *lb, real *lc)
+__global__ void parallelThomas(real *d, unsigned long N, real *la, real *lb, real *lc)
 {
     int previousRow, nextRow;
     int currentRow = blockIdx.x * blockDim.x + threadIdx.x;
@@ -33,85 +33,6 @@ __global__ void parallelKernel1(real *d, unsigned long N, real *la, real *lb, re
             currentRow -= N;
 
             d[currentRow] = d[currentRow] - lc[i] * d[nextRow];
-        }
-    }
-}
-
-__global__ void parallelKernel2(real *d, unsigned long N, real phi, real b1, real b2, real b3, real bM, real bL, real c0, real c1, real c2, real c3, real cM)
-{
-    int previousRow, nextRow;
-    int currentRow = blockIdx.x * blockDim.x + threadIdx.x;
-    int i = 0;
-    real a, b, c;
-    a = -phi;
-
-    if (currentRow < N)
-    {    
-        // 1st: update auxiliary arrays
-        b = 1.0 + 2.0*phi;
-        d[currentRow] = d[currentRow] / b;
-        
-        #pragma unroll
-        for (i = 1; i < N; i++)
-        {
-            previousRow = currentRow;
-            currentRow += N;
-
-            switch (i)
-            {
-                case 1:
-                b = b1;
-                break;
-
-                case 2:
-                b = b2;
-                break;
-
-                case 3:
-                b = b3;
-                break;
-
-                default:
-                b = bM;
-            }
-            if(i == N-1)
-            {
-                a = -2.0*phi;
-                b = bL;
-            }
-            d[currentRow] = (d[currentRow] - a * d[previousRow]) / b;
-            
-        }
-        
-        // 2nd: update solution        
-        #pragma unroll
-        for (i = N - 2; i >= 0; i--)
-        {
-            nextRow = currentRow;
-            currentRow -= N;
-
-            switch (i)
-            {
-                case 0:
-                c = c0;
-                break;
-
-                case 1:
-                c = c1;
-                break;
-
-                case 2:
-                c = c2;
-                break;
-
-                case 3:
-                c = c3;
-                break;
-
-                default:
-                c = cM;
-            }
-            d[currentRow] = d[currentRow] - c * d[nextRow];
         }
     }
 }
