@@ -5,7 +5,7 @@ def create_gif(num_threads, dt_ODE, dt_PDE, method, cell_model, dx, mode):
 
     times = []
 
-    frames_file = f'./simulation-files/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt_ODE}-{dt_PDE}.txt'
+    frames_file = f'./simulation-files/double/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt_ODE}-{dt_PDE}.txt'
     f = open(frames_file, 'r')
     lines = f.readlines()
     discretization_size = len(lines[1].split())
@@ -62,13 +62,8 @@ def main():
             for cell_model in cell_models:
                 for number_threads in numbers_threads:
                     for method in methods:
-                        for dt_ODE in dts_ODE:
+                        for dt_ODE in dts:
                             dts_PDE = [dt_ODE]
-                            if method == 'OS-ADI' or method == 'FE':
-                                i = 2
-                                while dt_ODE * i <= max_dt_PDE:
-                                    dts_PDE.append(dt_ODE * i)
-                                    i += 1
                             for dt_PDE in dts_PDE:
                                 create_gif(number_threads, f'{dt_ODE:.3f}', f'{dt_PDE:.3f}', method, cell_model, dx, mode)
                                 print(f'Gif created for {cell_model} with {number_threads} threads, {dt_ODE} dt_ODE, {dt_PDE} dt_PDE, {dx} dx and {method} method ruuning on {mode}')

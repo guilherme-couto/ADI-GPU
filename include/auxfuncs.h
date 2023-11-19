@@ -255,9 +255,10 @@ void normalizeVoltage1D(int N, real *V)
 
 void createDirectories(char *pathToSaveData, char *method, char *cellModel, char *mode)
 {
-    char command[] = "mkdir -p";
+    char command[MAX_STRING_SIZE];
+    sprintf(command, "%s", "mkdir -p");
     char aux[MAX_STRING_SIZE];
-    char path[] = "./simulation-files/";
+    char path[MAX_STRING_SIZE] = "./simulation-files/";
     strcat(path, REAL_TYPE);
     sprintf(aux, "%s %s", command, path);
     system(aux);

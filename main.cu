@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         printf("Usage: %s <num_threads> <delta_t (ms)> <delta_x (cm)> <mode (CPU or GPU)> <method> <fibrosis (0-false or 1-true)> <vulnerability window (0-false or 1-true)> <only speed (0-false or 1-true)>\n", argv[0]);
         exit(1);
     }
-
+    
     // Get values from command line
     int numberThreads = atoi(argv[1]);
     real deltat = atof(argv[2]);
@@ -62,12 +62,16 @@ int main(int argc, char *argv[])
     {
         if (strcmp(mode, "CPU") == 0)
         {
-            runAllinCPU(options, method, deltat, numberThreads, delta_x);
+            runAllinCPU(options, method, deltat, numberThreads, delta_x, mode);
         }
         else if (strcmp(mode, "GPU") == 0)
         {
-            runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x);
+            runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x, mode);
         } 
+        else if (strcmp(mode, "All-GPU") == 0)
+        {
+            runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
+        }
         resetSimulationParameters();
     }
     
@@ -85,11 +89,15 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runAllinCPU(options, method, deltat, numberThreads, delta_x);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
-                runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x);
+                runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x, mode);
+            }
+            else if (strcmp(mode, "All-GPU") == 0)
+            {
+                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
             }
         }
         // Update S2 begin
@@ -99,11 +107,15 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runAllinCPU(options, method, deltat, numberThreads, delta_x);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
-                runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x);
+                runODEinCPUandPDEinGPU(options, method, deltat, numberThreads, delta_x, mode);
+            }
+            else if (strcmp(mode, "All-GPU") == 0)
+            {
+                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
             }
         }
     }

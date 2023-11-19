@@ -1,12 +1,12 @@
-#import numpy as np
-#import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.pyplot as plt
 import os
-#import math
+import math
 
 # Possible parameters
-dxs = ['0.020', '0.010', '0.002', '0.001']
+dxs = ['0.020']
 cell_models = ['AFHN']
-numbers_threads = [6, 8, 16, 32, 64, 128]
+numbers_threads = [4]
 dts = [0.02]
 methods = ['OS-ADI']
-modes = ['GPU', 'CPU']
+modes = ['All-GPU']
