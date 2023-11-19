@@ -85,8 +85,16 @@ __device__ real d_reactionW(real v, real w)
 
 __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned long N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
 {
+    // Naive
     unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+
+    // Diagonal / Column
+    // unsigned int blk_y = blockIdx.x;
+    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+
+    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
 
     if (ix < N && iy < N)
     {
@@ -113,59 +121,6 @@ __global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsig
     if (ix < nx && iy < ny)
     {
         out[iy * nx + ix] = in[ix * ny + iy];
-    }
-}
-
-__global__ void transposeDiagonal(real *odata, real *idata, int width, int height)
-{
-    __shared__ real tile[TILE_DIM][TILE_DIM+1];
-    int blockIdx_x, blockIdx_y;
-
-    // diagonal reordering
-    if (width == height)
-    {
-        blockIdx_y = blockIdx.x;
-        blockIdx_x = (blockIdx.x+blockIdx.y)%gridDim.x;
-    }
-    else
-    {
-        int bid = blockIdx.x + gridDim.x*blockIdx.y;
-        blockIdx_y = bid%gridDim.y;
-        blockIdx_x = ((bid/gridDim.y)+blockIdx_y)%gridDim.x;
-    }
-
-    int xIndex = blockIdx_x*TILE_DIM + threadIdx.x;
-    int yIndex = blockIdx_y*TILE_DIM + threadIdx.y;
-    int index_in = xIndex + (yIndex)*width;
-
-    xIndex = blockIdx_y*TILE_DIM + threadIdx.x;
-    yIndex = blockIdx_x*TILE_DIM + threadIdx.y;
-    int index_out = xIndex + (yIndex)*height;
-
-    for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
-    {
-        tile[threadIdx.y+i][threadIdx.x] = idata[index_in+i*width];
-    }
-
-    __syncthreads();
-
-    for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
-    {
-        odata[index_out+i*height] = tile[threadIdx.x][threadIdx.y+i];
-    }
-    
-}
-
-__global__ void transposeNaive(real *odata, real* idata, int width, int height)
-{
-    int xIndex = blockIdx.x*TILE_DIM + threadIdx.x;
-    int yIndex = blockIdx.y*TILE_DIM + threadIdx.y;
-    int index_in = xIndex + width * yIndex;
-    int index_out = yIndex + height * xIndex;
-
-    for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
-    {
-        odata[index_out+i] = idata[index_in+i*width];
     }
 }
 

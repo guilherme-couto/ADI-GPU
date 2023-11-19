@@ -281,24 +281,24 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                 // Save frames
                 #pragma omp master
                 {
-                    startWriting = omp_get_wtime();
                     if (VWTag == false)
                     {
                         // Write frames to file
-                        /*
-                        if (timeStepCounter % saverate == 0 && saveDataToGif == true)
-                        {
-                            fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                            for (i = 0; i < N; i++)
-                            {
-                                for (j = 0; j < N; j++)
-                                {
-                                    fprintf(fpFrames, "%lf ", V[i][j]);
-                                }
-                                fprintf(fpFrames, "\n");
-                            }
-                        }
-                        */
+                        // startWriting = omp_get_wtime();
+                        // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                        // {
+                        //     fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                        //     for (i = 0; i < N; i++)
+                        //     {
+                        //         for (j = 0; j < N; j++)
+                        //         {
+                        //             fprintf(fpFrames, "%lf ", V[i][j]);
+                        //         }
+                        //         fprintf(fpFrames, "\n");
+                        //     }
+                        // }
+                        // finishWriting = omp_get_wtime();
+                        // elapsedWriting += finishWriting - startWriting;
 
                         // Check S1 velocity
                         if (S1VelocityTag)
@@ -310,8 +310,6 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                             }
                         }
                     }
-                    finishWriting = omp_get_wtime();
-                    elapsedWriting += finishWriting - startWriting;
                 }
 
                 // Update time step counter
@@ -691,11 +689,10 @@ void runODEinCPUandPDEinGPU(bool options[], char *method, real deltat, int numbe
             elapsedPDE += finishPDE - startPDE;
             
             // Save frames
-            startWriting = omp_get_wtime();
             if (VWTag == false)
             {
                 // Write frames to file
-                
+                startWriting = omp_get_wtime();
                 if (timeStepCounter % saverate == 0 && saveDataToGif == true)
                 {
                     fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
@@ -709,8 +706,9 @@ void runODEinCPUandPDEinGPU(bool options[], char *method, real deltat, int numbe
                         fprintf(fpFrames, "\n");
                     }
                 }
+                finishWriting = omp_get_wtime();
+                elapsedWriting += finishWriting - startWriting;
                
-
                 // Check S1 velocity
                 if (S1VelocityTag)
                 {
@@ -721,9 +719,7 @@ void runODEinCPUandPDEinGPU(bool options[], char *method, real deltat, int numbe
                     }
                 }
             }
-            finishWriting = omp_get_wtime();
-            elapsedWriting += finishWriting - startWriting;
-            
+    
 
             // Update time step counter
             timeStepCounter++;
@@ -743,15 +739,13 @@ void runODEinCPUandPDEinGPU(bool options[], char *method, real deltat, int numbe
     fprintf(fpInfos, "Writing time: %lf seconds\n", elapsedWriting);
     fprintf(fpInfos, "Total execution time with writings: %lf seconds\n", elapsedTotal);
     
-    fprintf(fpInfos, "\nNumber of blocks: %d\n", numBlocks);
-    fprintf(fpInfos, "Block size: %d\n", blockSize);
+    fprintf(fpInfos, "\nFor PDE -> Grid size: %d, Block size: %d\n", numBlocks, blockSize);
+    fprintf(fpInfos, "Total threads: %d\n", numBlocks*blockSize);
     fprintf(fpInfos, "1st Thomas algorithm time: %lf seconds\n", elapsed1stThomas);
     fprintf(fpInfos, "2nd Thomas algorithm time: %lf seconds\n", elapsed2ndThomas);
     fprintf(fpInfos, "Transpose time: %lf seconds\n", elapsedTranspose);
     fprintf(fpInfos, "1st memory copy time: %lf seconds\n", elapsed1stMemCopy);
-    fprintf(fpInfos, "2nd memory copy time: %lf seconds\n", elapsed2ndMemCopy);
-    fprintf(fpInfos, "3rd memory copy time: %lf seconds\n", elapsed3rdMemCopy);
-    fprintf(fpInfos, "4th memory copy time: %lf seconds\n", elapsed4thMemCopy);
+    fprintf(fpInfos, "Last memory copy time: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
     // fprintf(fpInfos, "\ncusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);
@@ -1007,6 +1001,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             start1stThomas = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            //cuThomasVBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_rightside, N, N);
             cudaDeviceSynchronize();
             finish1stThomas = omp_get_wtime();
             elapsed1stThomas += finish1stThomas - start1stThomas;
@@ -1022,6 +1017,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             start2ndThomas = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize>>>(d_V, N, d_la, d_lb, d_lc);
+            //cuThomasVBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_V, N, N);
             cudaDeviceSynchronize();
             finish2ndThomas = omp_get_wtime();
             elapsed2ndThomas += finish2ndThomas - start2ndThomas;
@@ -1031,15 +1027,11 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             elapsedPDE += finishPDE - startPDE;
 
             
-            
-            
-            
             // Save frames
-            startWriting = omp_get_wtime();
             if (VWTag == false)
             {
                 // Write frames to file
-                
+                // startWriting = omp_get_wtime();
                 // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
                 // {
                 //     // Copy memory from device to host of the matrices (2D arrays)
@@ -1065,6 +1057,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
                 //         fprintf(fpFrames, "\n");
                 //     }
                 // }
+                // finishWriting = omp_get_wtime();
+                // elapsedWriting += finishWriting - startWriting;
                
 
                 // Check S1 velocity
@@ -1089,10 +1083,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
                     }
                 }
             }
-            finishWriting = omp_get_wtime();
-            elapsedWriting += finishWriting - startWriting;
             
-
             // Update time step counter
             timeStepCounter++;
         }
@@ -1111,15 +1102,15 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     fprintf(fpInfos, "Writing time: %lf seconds\n", elapsedWriting);
     fprintf(fpInfos, "Total execution time with writings: %lf seconds\n", elapsedTotal);
     
-    fprintf(fpInfos, "\nNumber of blocks: %d\n", numBlocks);
-    fprintf(fpInfos, "Block size: %d\n", blockSize);
+    fprintf(fpInfos, "\nFor ODE and Transpose -> Grid size (%d, %d): %d, Block size (%d, %d): %d\n", grid.x, grid.y, grid.x*grid.y, block.x, block.y, block.x*block.y);
+    fprintf(fpInfos, "Total threads: %d\n", grid.x*grid.y*block.x*block.y);
+
+    fprintf(fpInfos, "\nFor PDE -> Grid size: %d, Block size: %d\n", numBlocks, blockSize);
+    fprintf(fpInfos, "Total threads: %d\n", numBlocks*blockSize);
     fprintf(fpInfos, "1st Thomas algorithm time: %lf seconds\n", elapsed1stThomas);
     fprintf(fpInfos, "2nd Thomas algorithm time: %lf seconds\n", elapsed2ndThomas);
     fprintf(fpInfos, "Transpose time: %lf seconds\n", elapsedTranspose);
-    fprintf(fpInfos, "1st memory copy time: %lf seconds\n", elapsed1stMemCopy);
-    fprintf(fpInfos, "2nd memory copy time: %lf seconds\n", elapsed2ndMemCopy);
-    fprintf(fpInfos, "3rd memory copy time: %lf seconds\n", elapsed3rdMemCopy);
-    fprintf(fpInfos, "4th memory copy time: %lf seconds\n", elapsed4thMemCopy);
+    fprintf(fpInfos, "Memory copy time: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
     // fprintf(fpInfos, "\ncusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);

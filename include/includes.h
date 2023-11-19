@@ -2,10 +2,6 @@
 #define INCLUDES_H
 
 #define MAX_STRING_SIZE 100
-#define TILE_DIM 16
-#define BLOCK_ROWS 8
-#define BLOCK_SIZE 32
-#define NUM_BLOCKS 10
 /*size X of shared memory tile*/
 #define BDIMX 16
 /*size Y of shared memory tile*/
