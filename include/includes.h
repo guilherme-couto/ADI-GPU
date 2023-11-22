@@ -2,10 +2,11 @@
 #define INCLUDES_H
 
 #define MAX_STRING_SIZE 100
-/*size X of shared memory tile*/
+
+// Sizes of shared memory tile
 #define BDIMX 16
-/*size Y of shared memory tile*/
 #define BDIMY 16
+#define BDIMZ 16
 
 // Define real type
 typedef double real;

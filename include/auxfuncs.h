@@ -383,6 +383,23 @@ void initializeVariablesGPU(int N, real *V, real *W)
     }
 }
 
+void initializeVariablesGPU3D(int N, int H, real *V, real *W)
+{
+    int index;
+    for (int z = 0; z < H; z++)
+    {
+        for (int i = 0; i < N; i++)
+        {
+            for (int k = 0; k < N; k ++)
+            {
+                index = (z * N * N) + (i * N) + k;
+                V[index] = V_init;
+                W[index] = W_init;
+            }
+        }
+    }
+}
+
 void initializeVariablesWithSpiral(int N, real **V, real **W, real dxActual, int rate)
 {
 	real dxRef = 0.00125;

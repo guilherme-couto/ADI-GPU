@@ -72,6 +72,10 @@ int main(int argc, char *argv[])
         {
             runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
         }
+        else if (strcmp(mode, "All-GPU-3D") == 0)
+        {
+            runAllinGPU3D(options, method, deltat, numberThreads, delta_x, mode);
+        }
         resetSimulationParameters();
     }
     

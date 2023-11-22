@@ -110,6 +110,27 @@ __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned lo
     }
 }
 
+__global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned long N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
+{
+    // Naive
+    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
+
+    if (ix < N && iy < N)
+    {
+        unsigned int index = (ix * N) + iy + (iz * N * N);
+        
+        real actualV = d_V[index];
+        real actualW = d_W[index];
+
+        d_V[index] = actualV + deltat * (d_reactionV(actualV, actualW) + d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax));
+        d_W[index] = actualW + deltat * d_reactionW(actualV, actualW);
+
+        d_rightside[iy*N+ix+(iz*N*N)] = d_V[index];
+    }
+}
+
 __global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
 {
     unsigned int blk_y = blockIdx.x;
@@ -124,6 +145,29 @@ __global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsig
     }
 }
 
+__global__ void transposeDiagonalCol_XY(real *in, real *out, unsigned int nx, unsigned int ny)
+{
+    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
+
+    if (ix < nx && iy < ny && iz < nx)
+    {
+        out[iy * nx + ix + (iz*nx*nx)] = in[ix * ny + iy + (iz*nx*nx)];
+    }
+}
+
+__global__ void transposeDiagonalCol_YZ(real *in, real *out, unsigned int nx, unsigned int ny)
+{
+    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
+
+    if (ix < nx && iy < ny && iz < nx)
+    {
+        out[iz * nx + iy + (ix*nx*nx)] = in[iy * ny + iz + (ix*nx*nx)];
+    }
+}
 
 
 #endif // CUDA_FUNCTIONS_H
