@@ -111,6 +111,23 @@ __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned lo
     }
 }
 
+__global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
+{
+    unsigned int blk_y = blockIdx.x;
+    unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+
+    unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+
+    if (ix < nx && iy < ny)
+    {
+        out[iy * nx + ix] = in[ix * ny + iy];
+    }
+}
+
+//=======================================
+//      3D functions
+//=======================================
 __global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned long N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
 {
     // Naive
@@ -132,19 +149,64 @@ __global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned 
     }
 }
 
-__global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
-{
-    unsigned int blk_y = blockIdx.x;
-    unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+__global__ void parallelThomas3D(real *d, unsigned long N, real *la, real *lb, real *lc)
+{ 
+    int previousRow, nextRow;
+    int currentRow = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = 0;
 
-    unsigned int ix = blockDim.x * blk_x + threadIdx.x;
-    unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+    if (currentRow < N*N && currentRow % (N*N) == 0)
+    {    
+        // 1st: update auxiliary arrays
+        d[currentRow] = d[currentRow] / lb[i];
+        
+        #pragma unroll
+        for (i = 1; i < N; i++)
+        {
+            previousRow = currentRow;
+            currentRow += N;
 
-    if (ix < nx && iy < ny)
-    {
-        out[iy * nx + ix] = in[ix * ny + iy];
+            d[currentRow] = (d[currentRow] - la[i] * d[previousRow]) / (lb[i]);
+        }
+        
+        // 2nd: update solution
+        d[currentRow] = d[currentRow];
+        
+        #pragma unroll
+        for (i = N - 2; i >= 0; i--)
+        {
+            nextRow = currentRow;
+            currentRow -= N;
+
+            d[currentRow] = d[currentRow] - lc[i] * d[nextRow];
+        }
     }
 }
 
+__global__ void mapping1(real *in, real *out, unsigned int nx, unsigned int ny, unsigned int nz)
+{
+    // Naive
+    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
+
+    if (ix < nx && iy < ny && iz < nz)
+    {
+        out[ix*nx + iy + iz*nx*nz] = in[iy*ny + ix + iz*nx*nz];
+    }
+}
+
+__global__ void mapping2(real *in, real *out, unsigned int nx, unsigned int ny, unsigned int nz)
+{
+    // Naive
+    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
+
+    if (ix < nx && iy < ny && iz < nz)
+    {
+        out[iz*nx + ix + iy*nx*nz] = in[ix*ny + iy + iz*nx*nz];
+    }
+}
 
 #endif // CUDA_FUNCTIONS_H

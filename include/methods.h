@@ -23,7 +23,7 @@ real start1stThomas = 0.0, finish1stThomas = 0.0, elapsed1stThomas = 0.0;
 real start2ndThomas = 0.0, finish2ndThomas = 0.0, elapsed2ndThomas = 0.0;
 real start3rdThomas = 0.0, finish3rdThomas = 0.0, elapsed3rdThomas = 0.0;
 real startTranspose = 0.0, finishTranspose = 0.0, elapsedTranspose = 0.0;
-real elapsedTranspose2 = 0.0;
+real elapsedTranspose2 = 0.0, elapsedTranspose3 = 0.0;
 real startWriting = 0.0, finishWriting = 0.0, elapsedWriting = 0.0;
 real lastCheckpointTime = 0.0;
 
@@ -1365,16 +1365,14 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
             // 1st: Implicit y-axis diffusion (lines)
             // Call the kernel
             start1stThomas = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            parallelThomas3D<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
             cudaDeviceSynchronize();
             finish1stThomas = omp_get_wtime();
             elapsed1stThomas += finish1stThomas - start1stThomas;
 
-            // Call the transpose kernel
-            // TODO: Por enquanto a transposta só altera os valores de x e y de lugar
-            // Transpose XY
+            // Call the mapping kernel
             startTranspose = omp_get_wtime();
-            transposeDiagonalCol_XY<<<grid, block>>>(d_rightside, d_V, N, N);
+            mapping1<<<grid, block>>>(d_rightside, d_V, N, N, N);
             cudaDeviceSynchronize();
             finishTranspose = omp_get_wtime();
             elapsedTranspose += finishTranspose - startTranspose;
@@ -1382,16 +1380,14 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             start2ndThomas = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_V, N, d_la, d_lb, d_lc);
+            parallelThomas3D<<<numBlocks, blockSize>>>(d_V, N, d_la, d_lb, d_lc);
             cudaDeviceSynchronize();
             finish2ndThomas = omp_get_wtime();
             elapsed2ndThomas += finish2ndThomas - start2ndThomas;
 
-            // Call the transpose kernel
-            // TODO: Por enquanto a transposta só altera os valores de x e y de lugar
-            // Transpose YZ
+            // Call the mapping kernel
             startTranspose = omp_get_wtime();
-            transposeDiagonalCol_YZ<<<grid, block>>>(d_V, d_rightside, N, N);
+            mapping2<<<grid, block>>>(d_V, d_rightside, N, N, N);
             cudaDeviceSynchronize();
             finishTranspose = omp_get_wtime();
             elapsedTranspose2 += finishTranspose - startTranspose;
@@ -1399,27 +1395,21 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
             // 3rd: Implicit z-axis diffusion (height)                
             // Call the kernel
             start3rdThomas = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            parallelThomas3D<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
             cudaDeviceSynchronize();
             finish3rdThomas = omp_get_wtime();
             elapsed3rdThomas += finish3rdThomas - start3rdThomas;
 
+            // Call the mapping kernel
+            startTranspose = omp_get_wtime();
+            mapping2<<<grid, block>>>(d_rightside, d_V, N, N, N);
+            cudaDeviceSynchronize();
+            finishTranspose = omp_get_wtime();
+            elapsedTranspose3 += finishTranspose - startTranspose;
+
             // Finish measuring PDE execution time
             finishPDE = omp_get_wtime();
             elapsedPDE += finishPDE - startPDE;
-
-            // Pass from d_rightside to d_V
-            startMemCopy = omp_get_wtime();
-            cudaStatus1 = cudaMemcpy(d_rightside, d_V, N * N * H * sizeof(real), cudaMemcpyDeviceToDevice);
-            if (cudaStatus1 != cudaSuccess)
-            {
-                printf("cudaMemcpy failed Device to Device!\n");
-                exit(EXIT_FAILURE);
-            }
-            finishMemCopy = omp_get_wtime();
-            elapsedMemCopy += finishMemCopy - startMemCopy;
-            elapsed3rdMemCopy += finishMemCopy - startMemCopy;
-
             
             // Save frames
             if (VWTag == false)
@@ -1496,17 +1486,17 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
     fprintf(fpInfos, "Writing time: %lf seconds\n", elapsedWriting);
     fprintf(fpInfos, "Total execution time with writings: %lf seconds\n", elapsedTotal);
     
-    fprintf(fpInfos, "\nFor ODE and Transpose -> Grid size (%d, %d): %d, Block size (%d, %d): %d\n", grid.x, grid.y, grid.x*grid.y, block.x, block.y, block.x*block.y);
-    fprintf(fpInfos, "Total threads: %d\n", grid.x*grid.y*block.x*block.y);
+    fprintf(fpInfos, "\nFor ODE and Transpose -> Grid size (%d, %d, %d): %d, Block size (%d, %d, %d): %d\n", grid.x, grid.y, grid.z, grid.x*grid.y*grid.z, block.x, block.y, block.z, block.x*block.y*block.z);
+    fprintf(fpInfos, "Total threads: %d\n", grid.x*grid.y*grid.z*block.x*block.y*block.z);
 
     fprintf(fpInfos, "\nFor PDE -> Grid size: %d, Block size: %d\n", numBlocks, blockSize);
     fprintf(fpInfos, "Total threads: %d\n", numBlocks*blockSize);
     fprintf(fpInfos, "1st Thomas algorithm time: %lf seconds\n", elapsed1stThomas);
     fprintf(fpInfos, "2nd Thomas algorithm time: %lf seconds\n", elapsed2ndThomas);
     fprintf(fpInfos, "3rd Thomas algorithm time: %lf seconds\n", elapsed3rdThomas);
-    fprintf(fpInfos, "Transpose time: %lf seconds\n", elapsedTranspose);
-    fprintf(fpInfos, "2nd Transpose time: %lf seconds\n", elapsedTranspose2);
-    fprintf(fpInfos, "Memory copy time (non optimized): %lf seconds\n", elapsed3rdMemCopy);
+    fprintf(fpInfos, "1st Mapping time: %lf seconds\n", elapsedTranspose);
+    fprintf(fpInfos, "2nd Mapping time: %lf seconds\n", elapsedTranspose2);
+    fprintf(fpInfos, "3rd Mapping time: %lf seconds\n", elapsedTranspose3);
     fprintf(fpInfos, "Memory copy time (vel): %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
