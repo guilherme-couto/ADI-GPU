@@ -22,6 +22,7 @@ __constant__ real d_sigma = 1.2e-3;  // omega^-1 * cm^-1
 __constant__ real d_chi = 1.0e3;     // cm^-1
 __constant__ real d_Cm = 1.0e-3;     // mF * cm^-2
 
+// From GLOSTER, Andrew et al. Efficient Interleaved Batch Matrix Solvers for CUDA. arXiv preprint arXiv:1909.04539, 2019.
 __global__ void parallelThomas(real *d, unsigned long N, real *la, real *lb, real *lc)
 { 
     int previousRow, nextRow;
@@ -142,30 +143,6 @@ __global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsig
     if (ix < nx && iy < ny)
     {
         out[iy * nx + ix] = in[ix * ny + iy];
-    }
-}
-
-__global__ void transposeDiagonalCol_XY(real *in, real *out, unsigned int nx, unsigned int ny)
-{
-    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
-    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
-
-    if (ix < nx && iy < ny && iz < nx)
-    {
-        out[iy * nx + ix + (iz*nx*nx)] = in[ix * ny + iy + (iz*nx*nx)];
-    }
-}
-
-__global__ void transposeDiagonalCol_YZ(real *in, real *out, unsigned int nx, unsigned int ny)
-{
-    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
-    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
-
-    if (ix < nx && iy < ny && iz < nx)
-    {
-        out[iz * nx + iy + (ix*nx*nx)] = in[iy * ny + iz + (ix*nx*nx)];
     }
 }
 
