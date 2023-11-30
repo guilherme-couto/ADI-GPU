@@ -1,14 +1,15 @@
 import numpy as np
 import math
 
-N = 3
-blockDim = 2 # x, y # Maximum of 1024 threads per block
-blockZ = 2 # 1024 // (blockDim * blockDim) # z
-# gridDim = (N + blockDim - 1) // blockDim # x, y, z
-gridDim = math.ceil(pow(N * N * N / (blockDim * blockDim * blockZ), 1 / 3)) # x, y, z
+L = 2
+deltax = 0.02
+N = round(L / deltax) + 1
+blockDim = 16 # x, y # Maximum of 1024 threads per block
+blockZ = 1024 // (blockDim * blockDim) # z
+gridDim = math.ceil(pow(N * N * N / (blockDim * blockDim * blockZ), 1 / 3)) * 3 # x, y, z
 
-def mapping(a, b, c):
-    return a + b*N + c*N*N
+def mapping(alpha, beta, gamma):
+    return alpha + beta*N + gamma*N*N
 
 blockIdx_x = np.arange(gridDim)
 blockIdx_y = np.arange(gridDim)
@@ -27,7 +28,7 @@ cab = [] # c+a*N+b*N*N
 cba = [] # c+b*N+a*N*N
 
 print("Bx\tBy\tBz\tTx\tTy\t\tix\tiy\tiz\t\tabc\tacb\tbac\tbca\tcab\tcba")
-print("---------------------------------------------------------------------------------------------------------------------")
+print("----------------------------------------------------------------------------------------------------------------------------------------------")
 for i in blockIdx_x:
     for j in blockIdx_y:
         for m in blockIdx_z:
@@ -37,7 +38,7 @@ for i in blockIdx_x:
                         ix = i * blockDim + k
                         iy = j * blockDim + l
                         iz = m * blockZ + n
-                        print(f"{i}\t{j}\t{m}\t{k}\t{l}\t\t{ix}\t{iy}\t{iz}\t\t{mapping(ix, iy, iz)}\t{mapping(ix, iz, iy)}\t{mapping(iy, ix, iz)}\t{mapping(iy, iz, ix)}\t{mapping(iz, ix, iy)}\t{mapping(iz, iy, ix)}")
+                        #print(f"{i}\t{j}\t{m}\t{k}\t{l}\t\t{ix}\t{iy}\t{iz}\t\t{mapping(ix, iy, iz)}\t{mapping(ix, iz, iy)}\t{mapping(iy, ix, iz)}\t{mapping(iy, iz, ix)}\t{mapping(iz, ix, iy)}\t{mapping(iz, iy, ix)}")
                         if ix < N and iy < N and iz < N:
                             abc.append(mapping(ix, iy, iz))
                             acb.append(mapping(ix, iz, iy))
@@ -48,12 +49,12 @@ for i in blockIdx_x:
                         
 
 print("\n")
-# abc.sort()
-# acb.sort()
-# bac.sort()
-# bca.sort()
-# cab.sort()
-# cba.sort()
+abc.sort()
+acb.sort()
+bac.sort()
+bca.sort()
+cab.sort()
+cba.sort()
 
 print(f"N = {N}")
 print(f"Total number of elements = {N * N * N}")
@@ -64,27 +65,27 @@ print(f"Block (x, y, z) = ({blockDim}, {blockDim}, {blockZ}) -> {blockDim * bloc
 print(f"Total number of threads = {gridDim * gridDim * gridDim * blockDim * blockDim * blockZ}")
 print("\n")
 
-print(f"abc (ix + iy*N + iz*N*N) = {abc}")
+#print(f"abc (ix + iy*N + iz*N*N) = {abc}")
 print(f"len(abc) (ix + iy*N + iz*N*N) = {len(abc)}")
 print("\n")
 
-print(f"acb (ix + iz*N + iy*N*N) = {acb}")
+#print(f"acb (ix + iz*N + iy*N*N) = {acb}")
 print(f"len(acb) (ix + iz*N + iy*N*N) = {len(acb)}")
 print("\n")
 
-print(f"bac (iy + ia*N + iz*N*N) = {bac}")
+#print(f"bac (iy + ia*N + iz*N*N) = {bac}")
 print(f"len(bac) (iy + ia*N + iz*N*N) = {len(bac)}")
 print("\n")
 
-print(f"bca (iy + iz*N + ix*N*N) = {bca}")
+#print(f"bca (iy + iz*N + ix*N*N) = {bca}")
 print(f"len(bca) (iy + iz*N + ix*N*N) = {len(bca)}")
 print("\n")
 
-print(f"cab (iz + ix*N + iy*N*N) = {cab}")
+#print(f"cab (iz + ix*N + iy*N*N) = {cab}")
 print(f"len(cab) (iz + ix*N + iy*N*N) = {len(cab)}")
 print("\n")
 
-print(f"cba (iz + iy*N + ix*N*N) = {cba}")
+#print(f"cba (iz + iy*N + ix*N*N) = {cba}")
 print(f"len(cba) (iz + iy*N + ix*N*N) = {len(cba)}")
 print("\n")
 
