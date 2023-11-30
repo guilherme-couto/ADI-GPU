@@ -135,9 +135,10 @@ __global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned 
     unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
     unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
 
-    if (ix < N && iy < N)
+    if (ix < N && iy < N && iz < N)
     {
         unsigned int index = (ix * N) + iy + (iz * N * N);
+        unsigned int index2 = (iy * N) + ix + (iz * N * N);
         
         real actualV = d_V[index];
         real actualW = d_W[index];
@@ -145,7 +146,16 @@ __global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned 
         d_V[index] = actualV + deltat * (d_reactionV(actualV, actualW) + d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax));
         d_W[index] = actualW + deltat * d_reactionW(actualV, actualW);
 
-        d_rightside[iy*N+ix+(iz*N*N)] = d_V[index];
+        d_rightside[index2] = d_V[index];
+
+        // if (index == 8000)
+        // {
+        //     printf("\nparallelODE3D\n");
+        //     printf("value_in = %f\n", actualV);
+        //     printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
+        //     printf("index_out = %d\n", index2);
+        //     printf("value_out = %f\n", d_rightside[index2]);
+        // }
     }
 }
 
@@ -154,8 +164,9 @@ __global__ void parallelThomas3D(real *d, unsigned long N, real *la, real *lb, r
     int previousRow, nextRow;
     int currentRow = blockIdx.x * blockDim.x + threadIdx.x;
     int i = 0;
+    int remainder = currentRow % (N*N); 
 
-    if (currentRow < N*N && currentRow % (N*N) == 0)
+    if (remainder < N && currentRow < (N*N*N))
     {    
         // 1st: update auxiliary arrays
         d[currentRow] = d[currentRow] / lb[i];
@@ -192,7 +203,16 @@ __global__ void mapping1(real *in, real *out, unsigned int nx, unsigned int ny, 
 
     if (ix < nx && iy < ny && iz < nz)
     {
-        out[ix*nx + iy + iz*nx*nz] = in[iy*ny + ix + iz*nx*nz];
+        out[ix*nx + iy + iz*nx*nz] = in[ix + iy*ny + iz*nx*nz];
+
+        // if (ix + iy*ny + iz*nx*nz == 2200)
+        // {
+        //     printf("mapping1\n");
+        //     printf("value_in = %f\n", in[ix + iy*ny + iz*nx*nz]);
+        //     printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
+        //     printf("index_out = %d\n", ix*nx + iy + iz*nx*nz);
+        //     printf("value_out = %f\n", out[ix*nx + iy + iz*nx*nz]);
+        // }
     }
 }
 
@@ -205,7 +225,38 @@ __global__ void mapping2(real *in, real *out, unsigned int nx, unsigned int ny, 
 
     if (ix < nx && iy < ny && iz < nz)
     {
-        out[iz*nx + ix + iy*nx*nz] = in[ix*ny + iy + iz*nx*nz];
+        out[iy + iz*ny + ix*ny*ny] = in[iy + ix*ny + iz*nx*nz];
+
+        // if (iy + ix*ny + iz*nx*nz == 8000)
+        // {
+        //     printf("mapping2\n");
+        //     printf("value_in = %f\n", in[iy + ix*ny + iz*nx*nz]);
+        //     printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
+        //     printf("index_out = %d\n", iy + iz*ny + ix*ny*ny);
+        //     printf("value_out = %f\n", out[iy + iz*ny + ix*ny*ny]);
+        // }
+    }
+}
+
+__global__ void mapping3(real *in, real *out, unsigned int nx, unsigned int ny, unsigned int nz)
+{
+    // Naive
+    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    unsigned int iz = blockDim.z * blockIdx.z + threadIdx.z;
+
+    if (ix < nx && iy < ny && iz < nz)
+    {
+        out[iy + ix*ny + iz*ny*ny] = in[iy + iz*ny + ix*ny*ny];
+
+        // if (iy + iz*ny + ix*ny*ny == 805900)
+        // {
+        //     printf("mapping3\n");
+        //     printf("value_in = %f\n", in[iy + iz*ny + ix*ny*ny]);
+        //     printf("ix = %d, iy = %d, iz = %d\n", ix, iy, iz);
+        //     printf("index_out = %d\n", iy + ix*ny + iz*ny*ny);
+        //     printf("value_out = %f\n", out[iy + ix*ny + iz*ny*ny]);
+        // }
     }
 }
 

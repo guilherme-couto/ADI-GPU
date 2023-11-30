@@ -6,7 +6,7 @@
 // Sizes of shared memory tile
 #define BDIMX 16
 #define BDIMY 16
-#define BDIMZ 16
+#define BDIMZ 4
 
 // Define real type
 typedef double real;

@@ -4,9 +4,9 @@ import os
 import math
 
 # Possible parameters
-dxs = ['0.001', '0.002', '0.010', '0.020']
+dxs = ['0.020']
 cell_models = ['AFHN']
-numbers_threads = [6]
+numbers_threads = [4]
 dts = [0.02]
 methods = ['OS-ADI']
-modes = ['All-GPU']
+modes = ['All-GPU-3D']

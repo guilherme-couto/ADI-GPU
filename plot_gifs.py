@@ -1,45 +1,56 @@
 from execution import *
 import imageio.v2
 
+precision = 'double'
+
 def create_gif(num_threads, dt_ODE, dt_PDE, method, cell_model, dx, mode):
 
     times = []
+    frame = []
+    frames = []
 
-    frames_file = f'./simulation-files/double/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt_ODE}-{dt_PDE}.txt'
+    frames_file = f'./simulation-files/{precision}/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt_ODE}-{dt_PDE}.txt'
     f = open(frames_file, 'r')
-    lines = f.readlines()
-    discretization_size = len(lines[1].split())
-
-    for i in range(len(lines)):
-        line = lines[i].split()
-        lines[i] = [float(x) for x in line]
+    
+    line = f.readline()
+    line = line.split()
+    frame_count = 0
+    
+    while True:
+        if not line:
+            break
         if len(line) == 1:
             times.append(float(line[0]))
-
-    totalframes = len(times)
-    frame_rate = math.ceil(totalframes / 100)
-
-    frames = []
-    i = 1
-    for n in range(totalframes):
-        if n % frame_rate == 0:
-            frame_name = f'frame-{n}.png'
-            
-            if n == totalframes - 1:
-                frame_name = f'lastframe-{mode}-{method}-{dx}-{dt_ODE}-{cell_model}.png'
+            frame = []
+            line = f.readline()
+            if not line:
+                break
+            line = line.split()
+        else:
+            while len(line) > 1:
+                # line = line.split()
+                frame.append(line)
+                line = f.readline()
+                if not line:
+                    break
+                line = line.split()
                 
+            frame_name = f'frame-{frame_count}.png'
             frames.append(frame_name)
-
-            plt.imshow(lines[i:i+discretization_size], cmap='plasma', vmin=0.0, vmax=100)
+            
+            for i in range(len(frame)):
+                frame[i] = [float(x) for x in frame[i]]
+            
+            plt.imshow(frame, cmap='plasma', vmin=0.0, vmax=100)
             plt.colorbar(label='V (mV)')
-            plt.title(f'{mode} {cell_model} {method} dt = {dt_ODE} t = {times[n]:.2f}')
+            plt.title(f'{mode} {cell_model} {method} dt = {dt_ODE} t = {times[frame_count]:.2f}')
             plt.xticks([])
             plt.yticks([])
-
+            
             plt.savefig(frame_name)
             plt.close()
-
-            i += (discretization_size+1)
+            
+            frame_count += 1
 
     # Create gif directory
     if not os.path.exists(f'./gifs/{mode}/{dx}/{cell_model}/{method}'):
