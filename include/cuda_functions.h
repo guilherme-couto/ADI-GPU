@@ -87,40 +87,48 @@ __device__ real d_reactionW(real v, real w)
 __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned long N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
 {
     // Naive
-    unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+    //unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    //unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
 
     // Diagonal / Column
-    // unsigned int blk_y = blockIdx.x;
-    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+    //unsigned int blk_y = blockIdx.x;
+    //unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
 
-    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
-    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+    //unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    //unsigned int iy = blockDim.y * blk_y + threadIdx.y;
 
-    if (ix < N && iy < N)
+    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    //if (ix < N && iy < N)
+    if (i < N*N)
     {
-        unsigned int index = ix * N + iy;
+        unsigned int ix = i / N;
+        unsigned int iy = i % N;
         
-        real actualV = d_V[index];
-        real actualW = d_W[index];
+        real actualV = d_V[i];
+        real actualW = d_W[i];
 
-        d_V[index] = actualV + deltat * (d_reactionV(actualV, actualW) + d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax));
-        d_W[index] = actualW + deltat * d_reactionW(actualV, actualW);
+        d_V[i] = actualV + deltat * (d_reactionV(actualV, actualW) + d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax));
+        //d_V[i] = actualV + deltat * (d_reactionV(actualV, actualW));
+        d_W[i] = actualW + deltat * d_reactionW(actualV, actualW);
 
-        d_rightside[iy*N+ix] = d_V[index];
+        d_rightside[iy*N+ix] = d_V[i];
     }
 }
 
 __global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
 {
-    unsigned int blk_y = blockIdx.x;
-    unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+    //unsigned int blk_y = blockIdx.x;
+    //unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
 
-    unsigned int ix = blockDim.x * blk_x + threadIdx.x;
-    unsigned int iy = blockDim.y * blk_y + threadIdx.y;
-
-    if (ix < nx && iy < ny)
+    //unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    //unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
+    //if (ix < nx && iy < ny)
+    if (i < nx*ny)
     {
+        unsigned int ix = i / nx;
+        unsigned int iy = i % ny;
         out[iy * nx + ix] = in[ix * ny + iy];
     }
 }

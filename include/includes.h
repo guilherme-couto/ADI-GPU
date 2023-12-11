@@ -7,6 +7,7 @@
 #define BDIMX 16
 #define BDIMY 16
 #define BDIMZ 4
+#define BLOCK_SIZE 32
 
 // Define real type
 typedef double real;

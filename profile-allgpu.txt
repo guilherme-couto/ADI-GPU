@@ -1,0 +1,53 @@
+[user@fedora ADI-GPU]$ nsys profile -o profile-output ./main 6 0.02 0.001 All-GPU OS-ADI 0 0 0
+NumBlock: 20, BlockSize: 128
+All cudaMallocs done!
+Generating '/tmp/nsys-report-94f8.qdstrm'
+Failed to create '/home/user/guilherme/ADI-GPU/profile-output.nsys-rep': Arquivo existe.
+Use `--force-overwrite true` to overwrite existing files.
+[1/1] [========================100%] nsys-report-4a50.nsys-rep
+Generated:
+    /tmp/nsys-report-4a50.nsys-rep
+[user@fedora ADI-GPU]$ nsys nvprof -o profile-output ./main 6 0.02 0.001 All-GPU OS-ADI 0 0 0
+WARNING: main and any of its children processes will be profiled.
+
+NumBlock: 20, BlockSize: 128
+All cudaMallocs done!
+Generating '/tmp/nsys-report-198f.qdstrm'
+Failed to create '/home/user/guilherme/ADI-GPU/profile-output.nsys-rep': Arquivo existe.
+Use `--force-overwrite true` to overwrite existing files.
+[1/7] [========================100%] nsys-report-b1cb.nsys-rep
+[2/7] [========================100%] profile-output.sqlite
+[3/7] Executing 'nvtx_sum' stats report
+SKIPPED: /home/user/guilherme/ADI-GPU/profile-output.sqlite does not contain NV Tools Extension (NVTX) data.
+[4/7] Executing 'cuda_api_sum' stats report
+
+ Time (%)  Total Time (ns)  Num Calls    Avg (ns)     Med (ns)    Min (ns)   Max (ns)   StdDev (ns)            Name         
+ --------  ---------------  ---------  ------------  -----------  --------  ----------  ------------  ----------------------
+     81,0   33.916.556.517     44.004     770.760,0    984.339,0   127.934   1.392.250     378.033,0  cudaDeviceSynchronize 
+     18,0    7.613.179.044      1.624   4.687.918,0  4.666.877,0     6.080   5.981.918     216.510,0  cudaMemcpy            
+      0,0       75.048.213     44.004       1.705,0      1.569,0     1.422     174.049       1.279,0  cudaLaunchKernel      
+      0,0       73.017.531          7  10.431.075,0     34.811,0     1.806  72.873.235  27.534.409,0  cudaMalloc            
+      0,0        2.687.507          7     383.929,0    627.174,0     1.914     642.266     318.936,0  cudaFree              
+      0,0            1.407          1       1.407,0      1.407,0     1.407       1.407           0,0  cuModuleGetLoadingMode
+
+[5/7] Executing 'cuda_gpu_kern_sum' stats report
+
+ Time (%)  Total Time (ns)  Instances   Avg (ns)     Med (ns)    Min (ns)  Max (ns)   StdDev (ns)                                                  Name                                                
+ --------  ---------------  ---------  -----------  -----------  --------  ---------  -----------  ----------------------------------------------------------------------------------------------------
+     67,0   22.879.503.708     22.002  1.039.882,0  1.082.504,0   981.959  1.179.017     51.192,0  parallelThomas(double *, unsigned long, double *, double *, double *)                               
+     28,0    9.517.365.573     11.001    865.136,0    864.934,0   842.406  1.391.754      7.495,0  parallelODE(double *, double *, double *, unsigned long, double, double, int, int, int, int, int, i…
+      4,0    1.413.600.523     11.001    128.497,0    127.969,0   120.353    169.121      4.084,0  transposeDiagonalCol(double *, double *, unsigned int, unsigned int)                                
+
+[6/7] Executing 'cuda_gpu_mem_time_sum' stats report
+
+ Time (%)  Total Time (ns)  Count   Avg (ns)     Med (ns)    Min (ns)   Max (ns)   StdDev (ns)      Operation     
+ --------  ---------------  -----  -----------  -----------  ---------  ---------  -----------  ------------------
+     99,0    7.459.745.893  1.619  4.607.625,0  4.581.635,0  4.534.377  5.894.165     76.868,0  [CUDA memcpy DtoH]
+      0,0        9.180.131      5  1.836.026,0      1.504,0      1.344  4.638.018  2.512.360,0  [CUDA memcpy HtoD]
+
+[7/7] Executing 'cuda_gpu_mem_size_sum' stats report
+
+ Total (MB)  Count  Avg (MB)  Med (MB)  Min (MB)  Max (MB)  StdDev (MB)      Operation     
+ ----------  -----  --------  --------  --------  --------  -----------  ------------------
+ 51859,821   1.619  32,032    32,032    32,032    32,032    0,000        [CUDA memcpy DtoH]
+ 64,112          5  12,822    0,016     0,016     32,032    17,536       [CUDA memcpy HtoD]

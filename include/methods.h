@@ -972,6 +972,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
         exit(EXIT_FAILURE);
     }
 
+    int GRID_SIZE = (N*N) / BLOCK_SIZE;
+
     /*--------------------
     --  ADI 1st order   --
     ----------------------*/
@@ -990,7 +992,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             startODE = omp_get_wtime();
 
             // Resolve ODEs
-            parallelODE<<<grid, block>>>(d_V, d_W, d_rightside, N, timeStep, deltat, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+            parallelODE<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_W, d_rightside, N, timeStep, deltat, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
             cudaDeviceSynchronize();
 
             // Finish measuring ODE execution time and start measuring PDE execution time
@@ -1010,7 +1012,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
             // Call the transpose kernel
             startTranspose = omp_get_wtime();
-            transposeDiagonalCol<<<grid, block>>>(d_rightside, d_V, N, N);
+            transposeDiagonalCol<<<GRID_SIZE, BLOCK_SIZE>>>(d_rightside, d_V, N, N);
             cudaDeviceSynchronize();
             finishTranspose = omp_get_wtime();
             elapsedTranspose += finishTranspose - startTranspose;
@@ -1033,34 +1035,34 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             if (VWTag == false)
             {
                 // Write frames to file
-                startWriting = omp_get_wtime();
-                if (timeStepCounter % saverate == 0 && saveDataToGif == true)
-                {
-                    // Copy memory from device to host of the matrices (2D arrays)
-                    startMemCopy = omp_get_wtime();
-                    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-                    if (cudaStatus1 != cudaSuccess)
-                    {
-                        printf("cudaMemcpy failed 5th call!\n");
-                        exit(EXIT_FAILURE);
-                    }
-                    finishMemCopy = omp_get_wtime();
-                    elapsedMemCopy += finishMemCopy - startMemCopy;
-                    elapsed4thMemCopy += finishMemCopy - startMemCopy;
+                //startWriting = omp_get_wtime();
+                //if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                //{
+                //    // Copy memory from device to host of the matrices (2D arrays)
+                //    startMemCopy = omp_get_wtime();
+                //    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                //    if (cudaStatus1 != cudaSuccess)
+                //   {
+                //        printf("cudaMemcpy failed 5th call!\n");
+                //        exit(EXIT_FAILURE);
+                //    }
+                //    finishMemCopy = omp_get_wtime();
+                //    elapsedMemCopy += finishMemCopy - startMemCopy;
+                //    elapsed4thMemCopy += finishMemCopy - startMemCopy;
 
-                    fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                    for (i = 0; i < N; i++)
-                    {
-                        for (j = 0; j < N; j++)
-                        {
-                            index = i * N + j;
-                            fprintf(fpFrames, "%lf ", V[index]);
-                        }
-                        fprintf(fpFrames, "\n");
-                    }
-                }
-                finishWriting = omp_get_wtime();
-                elapsedWriting += finishWriting - startWriting;
+                //    fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                //    for (i = 0; i < N; i++)
+                //    {
+                //        for (j = 0; j < N; j++)
+                //        {
+                //            index = i * N + j;
+                //            fprintf(fpFrames, "%lf ", V[index]);
+                //        }
+                //        fprintf(fpFrames, "\n");
+                //    }
+                //}
+                //finishWriting = omp_get_wtime();
+                //elapsedWriting += finishWriting - startWriting;
                
 
                 // Check S1 velocity
