@@ -13,14 +13,10 @@ void resetSimulationParameters()
     startTotal = 0.0;
     finishTotal = 0.0;
     elapsedTotal = 0.0;
-    startODE = 0.0;
-    finishODE = 0.0;
+    startPartial = 0.0;
+    finishPartial = 0.0;
     elapsedODE = 0.0;
-    startPDE = 0.0;
-    finishPDE = 0.0;
     elapsedPDE = 0.0;
-    startMemCopy = 0.0;
-    finishMemCopy = 0.0;
     elapsedMemCopy = 0.0;
 
     // For velocity
