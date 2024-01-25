@@ -91,15 +91,15 @@ __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned in
     //unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
 
     // Diagonal / Column
-    //unsigned int blk_y = blockIdx.x;
-    //unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+    // unsigned int blk_y = blockIdx.x;
+    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
 
-    //unsigned int ix = blockDim.x * blk_x + threadIdx.x;
-    //unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
 
     unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    //if (ix < N && iy < N)
+    // if (ix < N && iy < N)
     if (i < N*N)
     {
         unsigned int ix = i / N;
@@ -116,9 +116,9 @@ __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned in
     }
 }
 
-__device__ real d_iDiffusion(int i, int j, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__device__ real d_iDiffusion(unsigned int i, unsigned int j, unsigned int index, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
-    unsigned int index = i * N + j;
+    //unsigned int index = i * N + j;
 
     real result = 0.0;
     if (i == 0)
@@ -141,9 +141,9 @@ __device__ real d_iDiffusion(int i, int j, unsigned int N, real *V, int discFibx
     return result;
 }
 
-__device__ real d_jDiffusion(int i, int j, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__device__ real d_jDiffusion(unsigned int i, unsigned int j, unsigned int index, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
-    unsigned int index = i * N + j;
+    //unsigned int index = i * N + j;
 
     real result = 0.0;
     if (j == 0)
@@ -168,27 +168,27 @@ __device__ real d_jDiffusion(int i, int j, unsigned int N, real *V, int discFibx
 
 __global__ void parallelODE_SSI(real *d_V, real *d_W, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
-    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < N*N)
+    if (index < N*N)
     {
-        unsigned int ix = i / N;
-        unsigned int iy = i % N;
+        unsigned int i = index / N;
+        unsigned int j = index % N;
         
-        real actualV = d_V[i];
-        real actualW = d_W[i];
+        real actualV = d_V[index];
+        real actualW = d_W[index];
 
-        real stim = d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+        real stim = d_stimulus(i, j, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
 
         // Update V with diffusion (RK2) and W without diffusion
         real Vtilde, Wtilde;
-        real diffusion = d_iDiffusion(ix, iy, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(ix, iy, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+        real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
         
         Vtilde = actualV + (0.5 * deltat * (d_reactionV(actualV, actualW) + stim)) + (0.5 * phi * diffusion);
         Wtilde = actualW + 0.5 * deltat * d_reactionW(actualV, actualW);
 
         // Update V reaction term
-        d_Rv[i] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
+        d_Rv[index] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
 
         // Update W explicitly (RK2)
         d_W[i] = actualW + deltat * d_reactionW(Vtilde, Wtilde);
@@ -197,21 +197,21 @@ __global__ void parallelODE_SSI(real *d_V, real *d_W, real *d_Rv, unsigned int N
 
 __global__ void parallelODE_MOSI(real *d_V, real *d_W, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
-    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < N*N)
+    if (index < N*N)
     {
-        unsigned int ix = i / N;
-        unsigned int iy = i % N;
+        unsigned int i = index / N;
+        unsigned int j = index % N;
         
-        real actualV = d_V[i];
-        real actualW = d_W[i];
+        real actualV = d_V[index];
+        real actualW = d_W[index];
 
-        real stim = d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+        real stim = d_stimulus(i, j, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
 
         // Update V with diffusion (RK2) and W without diffusion
         real Vtilde, Wtilde;
-        real diffusion = d_iDiffusion(ix, iy, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(ix, iy, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+        real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
         
         Vtilde = actualV + (0.5 * deltat * (d_reactionV(actualV, actualW) + stim)) + (0.5 * phi * diffusion);
         
@@ -219,10 +219,10 @@ __global__ void parallelODE_MOSI(real *d_V, real *d_W, real *d_Rv, unsigned int 
         Wtilde = actualW + 0.5 * Rw;
 
         // Update V reaction term
-        d_Rv[i] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
+        d_Rv[index] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
 
         // Update W explicitly
-        d_W[i] = actualW + Rw;
+        d_W[index] = actualW + Rw;
     }
 }
 
@@ -251,7 +251,7 @@ __global__ void prepareRighthandSide_iDiffusion(real *d_V, real *d_rightside, re
     {
         int i = index / N;
         int j = index % N;
-        d_rightside[index] = d_V[index] + (0.5 * phi * d_iDiffusion(i, j, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        d_rightside[index] = d_V[index] + (0.5 * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
 }
 
@@ -264,7 +264,7 @@ __global__ void prepareRighthandSide_jDiffusion(real *d_V, real *d_rightside, re
         int i = index / N;
         int j = index % N;
         int transposedIndex = j * N + i;
-        d_rightside[transposedIndex] = d_V[index] + (0.5 * phi * d_jDiffusion(i, j, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        d_rightside[transposedIndex] = d_V[index] + (0.5 * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
 }
 

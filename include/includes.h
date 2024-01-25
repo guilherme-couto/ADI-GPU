@@ -34,5 +34,3 @@ typedef double real;
 #include "methods.h"
 
 #endif // INCLUDES_H
-
-// nvcc -Xcompiler -fopenmp -lpthread -lcusparse main.cu -o main -O3
