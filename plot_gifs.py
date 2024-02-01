@@ -3,13 +3,13 @@ import imageio.v2
 
 precision = 'double'
 
-def create_gif(num_threads, dt_ODE, dt_PDE, method, cell_model, dx, mode):
+def create_gif(num_threads, dt, method, cell_model, dx, mode):
 
     times = []
     frame = []
     frames = []
 
-    frames_file = f'./simulation-files/{precision}/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt_ODE}-{dt_PDE}.txt'
+    frames_file = f'./simulation-files/{precision}/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt}.txt'
     f = open(frames_file, 'r')
     
     line = f.readline()
@@ -43,7 +43,7 @@ def create_gif(num_threads, dt_ODE, dt_PDE, method, cell_model, dx, mode):
             
             plt.imshow(frame, cmap='plasma', vmin=0.0, vmax=100)
             plt.colorbar(label='V (mV)')
-            plt.title(f'{mode} {cell_model} {method} dt = {dt_ODE} t = {times[frame_count]:.2f}')
+            plt.title(f'{mode} {cell_model} {method} dt = {dt} t = {times[frame_count]:.2f}')
             plt.xticks([])
             plt.yticks([])
             
@@ -57,7 +57,7 @@ def create_gif(num_threads, dt_ODE, dt_PDE, method, cell_model, dx, mode):
         os.makedirs(f'./gifs/{mode}/{dx}/{cell_model}/{method}')
 
     # Build gif
-    with imageio.v2.get_writer(f'./gifs/{mode}/{dx}/{cell_model}/{method}/{num_threads}-{dt_ODE}-{dt_PDE}.gif', mode='I') as writer:
+    with imageio.v2.get_writer(f'./gifs/{mode}/{dx}/{cell_model}/{method}/{num_threads}-{dt}.gif', mode='I') as writer:
         for frame in frames:
             image = imageio.v2.imread(frame)
             writer.append_data(image)
@@ -73,11 +73,9 @@ def main():
             for cell_model in cell_models:
                 for number_threads in numbers_threads:
                     for method in methods:
-                        for dt_ODE in dts:
-                            dts_PDE = [dt_ODE]
-                            for dt_PDE in dts_PDE:
-                                create_gif(number_threads, f'{dt_ODE:.3f}', f'{dt_PDE:.3f}', method, cell_model, dx, mode)
-                                print(f'Gif created for {cell_model} with {number_threads} threads, {dt_ODE} dt_ODE, {dt_PDE} dt_PDE, {dx} dx and {method} method ruuning on {mode}')
+                        for dt in dts:
+                            create_gif(number_threads, f'{dt:.3f}', method, cell_model, dx, mode)
+                            print(f'Gif created for {cell_model} with {number_threads} threads, {dt} dt, {dx} dx and {method} method ruuning on {mode}')
 
 if __name__ == '__main__':
     main()

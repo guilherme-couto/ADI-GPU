@@ -807,7 +807,7 @@ void runODEinCPUandPDEinGPU(bool options[], char *method, real deltat, int numbe
 
 }
 
-void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode)
+void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode, real theta)
 {
     // Get options
     bool haveFibrosis = options[0];
@@ -859,13 +859,21 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     real *lb = (real *)malloc(N * sizeof(real));
     real *lc = (real *)malloc(N * sizeof(real));
 
+    real theta_implicit = 0.0;
+    real theta_explicit = 0.0;
     if (strcmp(method, "OS-ADI") == 0)
-    {
         populateDiagonalThomasAlgorithm(la, lb, lc, N, phi);
-    }
     else if (strcmp(method, "SSI-ADI") == 0 || strcmp(method, "MOSI-ADI") == 0)
     {
-        populateDiagonalThomasAlgorithm(la, lb, lc, N, 0.5*phi);
+        theta_implicit = 0.5;
+        theta_explicit = 1.0 - theta_implicit;
+        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta_implicit*phi);
+    }
+    else if (strcmp(method, "theta-ADI") == 0)
+    {
+        theta_implicit = theta;
+        theta_explicit = 1.0 - theta_implicit;
+        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta_implicit*phi);
     }
     
 
@@ -885,53 +893,37 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
     // File names
     char framesFileName[MAX_STRING_SIZE], infosFileName[MAX_STRING_SIZE];
-    sprintf(framesFileName, "frames-%d-%.3lf-%.3lf.txt", numberThreads, deltat, deltat);
-    sprintf(infosFileName, "infos-%d-%.3lf-%.3lf.txt", numberThreads, deltat, deltat);
+    sprintf(framesFileName, "frames-%d-%.3lf.txt", numberThreads, deltat);
+    sprintf(infosFileName, "infos-%d-%.3lf-%.2lf.txt", numberThreads, deltat, theta_implicit);
     int saverate = ceil(M / 100.0);
     FILE *fpFrames, *fpInfos;
 
     // Create directories and files
     char pathToSaveData[MAX_STRING_SIZE];
     if (haveFibrosis)
-    {
         createDirectories(pathToSaveData, method, "AFHN-Fibro", mode);
-    }
     else
-    {
         createDirectories(pathToSaveData, method, "AFHN", mode);
-    }
     
     // File pointers
     char aux[MAX_STRING_SIZE];
+    sprintf(aux, "%s/%s", pathToSaveData, infosFileName);
     if (VWTag == false)
-    {
-
-        sprintf(aux, "%s/%s", pathToSaveData, infosFileName);
         fpInfos = fopen(aux, "w");
-    }
     else
-    {
-        sprintf(aux, "%s/%s", pathToSaveData, infosFileName);
         fpInfos = fopen(aux, "a");
-    }
+    
+    sprintf(aux, "%s/%s", pathToSaveData, framesFileName);
     if (saveDataToGif == false)
-    {
-        sprintf(aux, "%s/%s", pathToSaveData, framesFileName);
         fpFrames = fopen(aux, "a");
-    }
     else
-    {
-        sprintf(aux, "%s/%s", pathToSaveData, framesFileName);
         fpFrames = fopen(aux, "w");
-    }
     
     // CUDA variables and allocation
     int numBlocks = N / 100; 
     int blockSize = round(N / numBlocks) + 1;
     if (blockSize % 32 != 0)
-    {
         blockSize = 32 * ((blockSize / 32) + 1);
-    }
     printf("NumBlock: %d, BlockSize: %d\n", numBlocks, blockSize);
     
     // Diagonal kernel parameters
@@ -1037,34 +1029,34 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             if (VWTag == false)
             {
                 // Write frames to file
-                // startPartial = omp_get_wtime();
-                // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
-                // {
-                //    // Copy memory from device to host of the matrices (2D arrays)
-                //    startPartial = omp_get_wtime();
-                //    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-                //    if (cudaStatus1 != cudaSuccess)
-                //   {
-                //        printf("cudaMemcpy failed 5th call!\n");
-                //        exit(EXIT_FAILURE);
-                //    }
-                //    finishPartial = omp_get_wtime();
-                //    elapsedMemCopy += finishPartial - startPartial;
-                //    elapsed4thMemCopy += finishPartial - startPartial;
+                startPartial = omp_get_wtime();
+                if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                {
+                   // Copy memory from device to host of the matrices (2D arrays)
+                   startPartial = omp_get_wtime();
+                   cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                   if (cudaStatus1 != cudaSuccess)
+                  {
+                       printf("cudaMemcpy failed 5th call!\n");
+                       exit(EXIT_FAILURE);
+                   }
+                   finishPartial = omp_get_wtime();
+                   elapsedMemCopy += finishPartial - startPartial;
+                   elapsed4thMemCopy += finishPartial - startPartial;
 
-                //    fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                //    for (i = 0; i < N; i++)
-                //    {
-                //        for (j = 0; j < N; j++)
-                //        {
-                //            index = i * N + j;
-                //            fprintf(fpFrames, "%lf ", V[index]);
-                //        }
-                //        fprintf(fpFrames, "\n");
-                //    }
-                // }
-                // finishPartial = omp_get_wtime();
-                // elapsedWriting += finishPartial - startPartial;
+                   fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                   for (i = 0; i < N; i++)
+                   {
+                       for (j = 0; j < N; j++)
+                       {
+                           index = i * N + j;
+                           fprintf(fpFrames, "%lf ", V[index]);
+                       }
+                       fprintf(fpFrames, "\n");
+                   }
+                }
+                finishPartial = omp_get_wtime();
+                elapsedWriting += finishPartial - startPartial;
                
 
                 // Check S1 velocity
@@ -1135,7 +1127,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             startPartial = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
-            //cuThomasVBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_rightside, N, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
@@ -1159,7 +1150,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             startPartial = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
-            //cuThomasVBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_V, N, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;
@@ -1181,34 +1171,34 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             if (VWTag == false)
             {
                 // Write frames to file
-                // startPartial = omp_get_wtime();
-                // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
-                // {
-                //   //Copy memory from device to host of the matrices (2D arrays)
-                //   startPartial = omp_get_wtime();
-                //   cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-                //   if (cudaStatus1 != cudaSuccess)
-                //   {
-                //        printf("cudaMemcpy failed 5th call!\n");
-                //        exit(EXIT_FAILURE);
-                //   }
-                //   finishPartial = omp_get_wtime();
-                //   elapsedMemCopy += finishPartial - startPartial;
-                //   elapsed4thMemCopy += finishPartial - startPartial;
+                startPartial = omp_get_wtime();
+                if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                {
+                  //Copy memory from device to host of the matrices (2D arrays)
+                  startPartial = omp_get_wtime();
+                  cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                  if (cudaStatus1 != cudaSuccess)
+                  {
+                       printf("cudaMemcpy failed 5th call!\n");
+                       exit(EXIT_FAILURE);
+                  }
+                  finishPartial = omp_get_wtime();
+                  elapsedMemCopy += finishPartial - startPartial;
+                  elapsed4thMemCopy += finishPartial - startPartial;
 
-                //   fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                //   for (i = 0; i < N; i++)
-                //   {
-                //       for (j = 0; j < N; j++)
-                //       {
-                //            index = i * N + j;
-                //            fprintf(fpFrames, "%lf ", V[index]);
-                //       }
-                //       fprintf(fpFrames, "\n");
-                //   }
-                // }
-                // finishPartial = omp_get_wtime();
-                // elapsedWriting += finishPartial - startPartial;
+                  fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                  for (i = 0; i < N; i++)
+                  {
+                      for (j = 0; j < N; j++)
+                      {
+                           index = i * N + j;
+                           fprintf(fpFrames, "%lf ", V[index]);
+                      }
+                      fprintf(fpFrames, "\n");
+                  }
+                }
+                finishPartial = omp_get_wtime();
+                elapsedWriting += finishPartial - startPartial;
 
 
                 // Check S1 velocity
@@ -1279,7 +1269,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             startPartial = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
-            //cuThomasVBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_rightside, N, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
@@ -1303,7 +1292,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             startPartial = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
-            //cuThomasVBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_V, N, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;
@@ -1325,35 +1313,177 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             if (VWTag == false)
             {
                 // Write frames to file
-                // startPartial = omp_get_wtime();
-                // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
-                // {
-                //     //Copy memory from device to host of the matrices (2D arrays)
-                //     startPartial = omp_get_wtime();
-                //     cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-                //     if (cudaStatus1 != cudaSuccess)
-                //     {
-                //         printf("cudaMemcpy failed 5th call!\n");
-                //         exit(EXIT_FAILURE);
-                //     }
-                //     finishPartial = omp_get_wtime();
-                //     elapsedMemCopy += finishPartial - startPartial;
-                //     elapsed4thMemCopy += finishPartial - startPartial;
+                startPartial = omp_get_wtime();
+                if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                {
+                    //Copy memory from device to host of the matrices (2D arrays)
+                    startPartial = omp_get_wtime();
+                    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                    if (cudaStatus1 != cudaSuccess)
+                    {
+                        printf("cudaMemcpy failed 5th call!\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    finishPartial = omp_get_wtime();
+                    elapsedMemCopy += finishPartial - startPartial;
+                    elapsed4thMemCopy += finishPartial - startPartial;
 
-                //     fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                //     for (i = 0; i < N; i++)
-                //     {
-                //         for (j = 0; j < N; j++)
-                //         {
-                //             index = i * N + j;
-                //             fprintf(fpFrames, "%lf ", V[index]);
-                //         }
-                //         fprintf(fpFrames, "\n");
-                //     }
-                // }
-                // finishPartial = omp_get_wtime();
-                // elapsedWriting += finishPartial - startPartial;
+                    fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                    for (i = 0; i < N; i++)
+                    {
+                        for (j = 0; j < N; j++)
+                        {
+                            index = i * N + j;
+                            fprintf(fpFrames, "%lf ", V[index]);
+                        }
+                        fprintf(fpFrames, "\n");
+                    }
+                }
+                finishPartial = omp_get_wtime();
+                elapsedWriting += finishPartial - startPartial;
 
+
+                // Check S1 velocity
+                if (S1VelocityTag)
+                {
+                    // Copy memory from device to host of the matrices (2D arrays)
+                    startPartial = omp_get_wtime();
+                    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                    if (cudaStatus1 != cudaSuccess)
+                    {
+                        printf("cudaMemcpy failed 5th call!\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    finishPartial = omp_get_wtime();
+                    elapsedMemCopy += finishPartial - startPartial;
+                    elapsed4thMemCopy += finishPartial - startPartial;
+
+                    if (V[N - 1] >= 80)
+                    {
+                        S1Velocity = ((10 * (L - stim1xLimit)) / (time[timeStepCounter]));
+                        S1VelocityTag = false;
+                    }
+                }
+            }
+            
+            // Update time step counter
+            timeStepCounter++;
+        }
+
+        // PDE execution
+        elapsedPDE = elapsed1stThomas + elapsed2ndThomas + elapsedTranspose + elapsed1stRHS + elapsed2ndRHS;
+        
+        // Finish measuring total execution time
+        finishTotal = omp_get_wtime();
+        elapsedTotal = finishTotal - startTotal;
+    }
+
+    else if (strcmp(method, "theta-ADI") == 0)
+    {
+        // Start measuring total execution time
+        startTotal = omp_get_wtime();
+        
+        while (timeStepCounter < M)
+        {
+            // Get time step
+            timeStep = time[timeStepCounter];
+
+            // Start measuring ODE execution time
+            startPartial = omp_get_wtime();
+
+            // Resolve ODEs
+            parallelODE_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_W, d_Rv, N, timeStep, deltat, phi, theta_explicit, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            cudaDeviceSynchronize();
+
+            // Finish measuring ODE execution time
+            finishPartial = omp_get_wtime();
+            elapsedODE += finishPartial - startPartial;
+
+            // Prepare right side of Thomas algorithm with explicit diffusion on j
+            // Call the kernel
+            startPartial = omp_get_wtime();
+            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            cudaDeviceSynchronize();     
+            finishPartial = omp_get_wtime();
+            elapsed1stRHS += finishPartial - startPartial;
+
+            // 1st: Implicit y-axis diffusion (lines)
+            // Call the kernel
+            startPartial = omp_get_wtime();
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            cudaDeviceSynchronize();
+            finishPartial = omp_get_wtime();
+            elapsed1stThomas += finishPartial - startPartial;
+
+            // Call the transpose kernel
+            startPartial = omp_get_wtime();
+            transposeDiagonalCol<<<GRID_SIZE, BLOCK_SIZE>>>(d_rightside, d_V, N, N);
+            cudaDeviceSynchronize();
+            finishPartial = omp_get_wtime();
+            elapsedTranspose += finishPartial - startPartial;
+
+            // Prepare right side of Thomas algorithm with explicit diffusion on i
+            // Call the kernel
+            startPartial = omp_get_wtime();
+            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            cudaDeviceSynchronize();
+            finishPartial = omp_get_wtime();
+            elapsed2ndRHS += finishPartial - startPartial;
+
+            // 2nd: Implicit x-axis diffusion (columns)                
+            // Call the kernel
+            startPartial = omp_get_wtime();
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            cudaDeviceSynchronize();
+            finishPartial = omp_get_wtime();
+            elapsed2ndThomas += finishPartial - startPartial;
+
+            // Copy d_rightside to d_V
+            startPartial = omp_get_wtime();
+            cudaStatus1 = cudaMemcpy(d_V, d_rightside, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+            if (cudaStatus1 != cudaSuccess)
+            {
+                printf("cudaMemcpy failed device to device!\n");
+                exit(EXIT_FAILURE);
+            }
+            finishPartial = omp_get_wtime();
+            elapsedMemCopy += finishPartial - startPartial;
+            elapsed2ndMemCopy += finishPartial - startPartial;
+
+            
+            // Save frames
+            if (VWTag == false)
+            {
+                // Write frames to file
+                startPartial = omp_get_wtime();
+                if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                {
+                //Copy memory from device to host of the matrices (2D arrays)
+                startPartial = omp_get_wtime();
+                cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                if (cudaStatus1 != cudaSuccess)
+                {
+                    printf("cudaMemcpy failed 5th call!\n");
+                    exit(EXIT_FAILURE);
+                }
+                finishPartial = omp_get_wtime();
+                elapsedMemCopy += finishPartial - startPartial;
+                elapsed4thMemCopy += finishPartial - startPartial;
+
+                fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                for (i = 0; i < N; i++)
+                {
+                    for (j = 0; j < N; j++)
+                    {
+                        index = i * N + j;
+                        fprintf(fpFrames, "%lf ", V[index]);
+                    }
+                    fprintf(fpFrames, "\n");
+                }
+                }
+                finishPartial = omp_get_wtime();
+                elapsedWriting += finishPartial - startPartial;
+                
 
                 // Check S1 velocity
                 if (S1VelocityTag)
@@ -1416,7 +1546,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     fprintf(fpInfos, "Memory copy time for velocity: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
-    // fprintf(fpInfos, "\ncusparseDgtsv2_bufferSizeExt = %d\n", buffer_size_in_bytes);
+    fprintf(fpInfos, "\ntheta = %lf\n", theta_implicit);
 
     if (haveFibrosis)
     {
@@ -1427,7 +1557,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     if (saveDataToError == true)
     {
         char lastFrameFileName[MAX_STRING_SIZE];
-        sprintf(lastFrameFileName, "last-%d-%.3lf-%.3lf.txt", numberThreads, deltat, deltat);
+        sprintf(lastFrameFileName, "last-%d-%.3lf.txt", numberThreads, deltat);
         FILE *fpLast;
         sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
         fpLast = fopen(aux, "w");

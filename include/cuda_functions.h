@@ -191,7 +191,36 @@ __global__ void parallelODE_SSI(real *d_V, real *d_W, real *d_Rv, unsigned int N
         d_Rv[index] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
 
         // Update W explicitly (RK2)
-        d_W[i] = actualW + deltat * d_reactionW(Vtilde, Wtilde);
+        d_W[index] = actualW + deltat * d_reactionW(Vtilde, Wtilde);
+    }
+}
+
+__global__ void parallelODE_theta(real *d_V, real *d_W, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, real theta, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N*N)
+    {
+        unsigned int i = index / N;
+        unsigned int j = index % N;
+        
+        real actualV = d_V[index];
+        real actualW = d_W[index];
+
+        real stim = d_stimulus(i, j, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+
+        // Update V with diffusion (RK2) and W without diffusion
+        real Vtilde, Wtilde;
+        real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+        
+        Vtilde = actualV + (theta * deltat * (d_reactionV(actualV, actualW) + stim)) + (theta * phi * diffusion);
+        Wtilde = actualW + theta * deltat * d_reactionW(actualV, actualW);
+
+        // Update V reaction term
+        d_Rv[index] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
+
+        // Update W explicitly (RK2)
+        d_W[index] = actualW + deltat * d_reactionW(Vtilde, Wtilde);
     }
 }
 
@@ -265,6 +294,31 @@ __global__ void prepareRighthandSide_jDiffusion(real *d_V, real *d_rightside, re
         int j = index % N;
         int transposedIndex = j * N + i;
         d_rightside[transposedIndex] = d_V[index] + (0.5 * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
+
+__global__ void prepareRighthandSide_iDiffusion_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N*N)
+    {
+        int i = index / N;
+        int j = index % N;
+        d_rightside[index] = d_V[index] + (theta * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
+
+__global__ void prepareRighthandSide_jDiffusion_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N*N)
+    {
+        int i = index / N;
+        int j = index % N;
+        int transposedIndex = j * N + i;
+        d_rightside[transposedIndex] = d_V[index] + (theta * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
 }
 

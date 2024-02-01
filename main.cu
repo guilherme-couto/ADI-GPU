@@ -43,7 +43,8 @@ int main(int argc, char *argv[])
     char *mode = argv[4];
     char *method = argv[5];
     bool fibrosis = atoi(argv[6]);
-    bool VWmeasure = atoi(argv[7]);
+    real theta = atof(argv[7]);
+    // bool VWmeasure = atoi(argv[7]);
     bool onlySpeed = atoi(argv[8]);
 
     // Call method
@@ -66,7 +67,7 @@ int main(int argc, char *argv[])
         } 
         else if (strcmp(mode, "All-GPU") == 0)
         {
-            runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
+            runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta);
         }
         else if (strcmp(mode, "All-GPU-3D") == 0)
         {
@@ -77,6 +78,7 @@ int main(int argc, char *argv[])
     
 
     // Measure Vulnerable Window
+    bool VWmeasure = 0;
     if (VWmeasure == true)
     {
         bool options[] = {fibrosis, true, false, false, true, true};
@@ -97,7 +99,7 @@ int main(int argc, char *argv[])
             }
             else if (strcmp(mode, "All-GPU") == 0)
             {
-                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
+                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta);
             }
         }
         // Update S2 begin
@@ -115,7 +117,7 @@ int main(int argc, char *argv[])
             }
             else if (strcmp(mode, "All-GPU") == 0)
             {
-                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode);
+                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta);
             }
         }
     }
