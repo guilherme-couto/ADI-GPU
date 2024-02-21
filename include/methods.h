@@ -1554,24 +1554,24 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
         fprintf(fpInfos, "Fibrosis region: (%.2lf, %.2lf) to (%.2lf, %.2lf)\n", fibrosisMinX, fibrosisMinY, fibrosisMaxX, fibrosisMaxY);
     }
 
-    if (saveDataToError == true)
-    {
-        char lastFrameFileName[MAX_STRING_SIZE];
-        sprintf(lastFrameFileName, "last-%d-%.3lf.txt", numberThreads, deltat);
-        FILE *fpLast;
-        sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
-        fpLast = fopen(aux, "w");
-        for (int i = 0; i < N; i++)
-        {
-            for (int j = 0; j < N; j++)
-            {
-                index = i * N + j;
-                fprintf(fpLast, "%lf ", V[index]);
-            }
-            fprintf(fpLast, "\n");
-        }
-        fclose(fpLast);
-    }
+    // if (saveDataToError == true)
+    // {
+    //     char lastFrameFileName[MAX_STRING_SIZE];
+    //     sprintf(lastFrameFileName, "last-%d-%.3lf.txt", numberThreads, deltat);
+    //     FILE *fpLast;
+    //     sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
+    //     fpLast = fopen(aux, "w");
+    //     for (int i = 0; i < N; i++)
+    //     {
+    //         for (int j = 0; j < N; j++)
+    //         {
+    //             index = i * N + j;
+    //             fprintf(fpLast, "%lf ", V[index]);
+    //         }
+    //         fprintf(fpLast, "\n");
+    //     }
+    //     fclose(fpLast);
+    // }
 
     // Close files
     fclose(fpFrames);

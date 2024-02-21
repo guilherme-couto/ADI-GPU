@@ -213,14 +213,20 @@ __global__ void parallelODE_theta(real *d_V, real *d_W, real *d_Rv, unsigned int
         real Vtilde, Wtilde;
         real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
         
-        Vtilde = actualV + (theta * deltat * (d_reactionV(actualV, actualW) + stim)) + (theta * phi * diffusion);
-        Wtilde = actualW + theta * deltat * d_reactionW(actualV, actualW);
+        real actualRHS_V = d_reactionV(actualV, actualW);
+        real actualRHS_W = d_reactionW(actualV, actualW);
+        
+        Vtilde = actualV + (deltat * (actualRHS_V + stim)) + (phi * diffusion);
+        Wtilde = actualW + deltat * actualRHS_W;
+
+        real tildeRHS_V = d_reactionV(Vtilde, Wtilde);
+        real tildeRHS_W = d_reactionW(Vtilde, Wtilde);
 
         // Update V reaction term
-        d_Rv[index] = deltat * (d_reactionV(Vtilde, Wtilde) + stim);
+        d_Rv[index] = deltat * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V) + stim);
 
         // Update W explicitly (RK2)
-        d_W[index] = actualW + deltat * d_reactionW(Vtilde, Wtilde);
+        d_W[index] = actualW + deltat * (((1.0 - theta) * actualRHS_W) + (theta * tildeRHS_W));
     }
 }
 
