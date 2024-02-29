@@ -1595,6 +1595,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     // Free memory from device
     cudaFree(d_V);
     cudaFree(d_W);
+    cudaFree(d_Rv);
     cudaFree(d_rightside);
     cudaFree(d_solution);
     cudaFree(d_la);

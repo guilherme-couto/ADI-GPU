@@ -72,50 +72,6 @@ __device__ real d_stimulus(int i, int j, int timeStep, int discS1xLimit, int dis
     return 0.0;
 }
 
-#if defined(AFHN)
-__device__ real d_reactionV(real v, real w)
-{
-    return (1.0 / (d_Cm * d_chi)) * ((-d_G * v * (1.0 - (v / d_vth)) * (1.0 - (v / d_vp))) + (-d_eta1 * v * w));
-}
-
-__device__ real d_reactionW(real v, real w)
-{
-    return d_eta2 * ((v / d_vp) - (d_eta3 * w));
-}
-#endif // AFHN
-
-__global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned int N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
-{
-    // Naive
-    //unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
-    //unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
-
-    // Diagonal / Column
-    // unsigned int blk_y = blockIdx.x;
-    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
-
-    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
-    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
-
-    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    // if (ix < N && iy < N)
-    if (i < N*N)
-    {
-        unsigned int ix = i / N;
-        unsigned int iy = i % N;
-        
-        real actualV = d_V[i];
-        real actualW = d_W[i];
-
-        d_V[i] = actualV + deltat * (d_reactionV(actualV, actualW) + d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax));
-        //d_V[i] = actualV + deltat * (d_reactionV(actualV, actualW));
-        d_W[i] = actualW + deltat * d_reactionW(actualV, actualW);
-
-        d_rightside[iy*N+ix] = d_V[i];
-    }
-}
-
 __device__ real d_iDiffusion(unsigned int i, unsigned int j, unsigned int index, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
     //unsigned int index = i * N + j;
@@ -164,6 +120,49 @@ __device__ real d_jDiffusion(unsigned int i, unsigned int j, unsigned int index,
         result *= fibrosisFactor;
     }
     return result;
+}
+
+#if defined(AFHN)
+__device__ real d_reactionV(real v, real w)
+{
+    return (1.0 / (d_Cm * d_chi)) * ((-d_G * v * (1.0 - (v / d_vth)) * (1.0 - (v / d_vp))) + (-d_eta1 * v * w));
+}
+
+__device__ real d_reactionW(real v, real w)
+{
+    return d_eta2 * ((v / d_vp) - (d_eta3 * w));
+}
+
+__global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned int N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
+{
+    // Naive
+    //unsigned int ix = blockDim.x * blockIdx.x + threadIdx.x;
+    //unsigned int iy = blockDim.y * blockIdx.y + threadIdx.y;
+
+    // Diagonal / Column
+    // unsigned int blk_y = blockIdx.x;
+    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+
+    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+
+    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // if (ix < N && iy < N)
+    if (i < N*N)
+    {
+        unsigned int ix = i / N;
+        unsigned int iy = i % N;
+        
+        real actualV = d_V[i];
+        real actualW = d_W[i];
+
+        d_V[i] = actualV + deltat * (d_reactionV(actualV, actualW) + d_stimulus(ix, iy, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax));
+        //d_V[i] = actualV + deltat * (d_reactionV(actualV, actualW));
+        d_W[i] = actualW + deltat * d_reactionW(actualV, actualW);
+
+        d_rightside[iy*N+ix] = d_V[i];
+    }
 }
 
 __global__ void parallelODE_SSI(real *d_V, real *d_W, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
@@ -260,6 +259,8 @@ __global__ void parallelODE_MOSI(real *d_V, real *d_W, real *d_Rv, unsigned int 
         d_W[index] = actualW + Rw;
     }
 }
+#endif // AFHN
+
 
 __global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
 {
