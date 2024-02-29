@@ -11,7 +11,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
 {
     // Number of steps
     int N = round(L / delta_x) + 1;               // Spatial steps (square tissue)
-    int M = round(T / delta_t) + 1;               // Number of time steps
+    int M = 100;               // Number of time steps
 
     // Allocate and populate time array
     real *time;
@@ -66,7 +66,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     strcat(path, REAL_TYPE);
     sprintf(aux, "%s %s", command, path);
     system(aux);
-    sprintf(pathToSaveData, "%s/%s", pathToSaveData, "AFHN");
+    sprintf(pathToSaveData, "%s/%s", path, "AFHN");
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
     sprintf(pathToSaveData, "%s/%s", pathToSaveData, method);
@@ -80,19 +80,16 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     }
 
     // File names
-    char framesFileName[MAX_STRING_SIZE], infosFileName[MAX_STRING_SIZE];
-    sprintf(framesFileName, "frames-%.3lf-%.3lf.txt", delta_t, delta_x);
-    sprintf(infosFileName, "infos-%.3lf-%.3lf.txt", delta_t, delta_x);
+    char infosFileName[MAX_STRING_SIZE];
+    sprintf(infosFileName, "infos-%.4lf-%.3lf.txt", delta_t, delta_x);
 
     // File pointers
-    FILE *fpFrames, *fpInfos;
+    FILE *fpInfos;
     sprintf(aux, "%s/%s", pathToSaveData, infosFileName);
     fpInfos = fopen(aux, "w");
-    sprintf(aux, "%s/%s", pathToSaveData, framesFileName);
-    fpFrames = fopen(aux, "w");
 
     // Save data rate
-    int saverate = 50;    // Save data every 50 ms
+    int saverate = ceil(M / 100.0);    
 
     // CUDA variables and allocation
     real *d_V, *d_RHS, *d_Rv;
@@ -216,40 +213,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             elapsedMemCopy += finishPartial - startPartial;
             elapsed2ndMemCopy += finishPartial - startPartial;
 
-            // Save frames
-            if (VWTag == false)
-            {
-                // Write frames to file
-                startPartial = omp_get_wtime();
-                if (timeStepCounter % saverate == 0)
-                {
-                    //Copy memory from device to host of the matrices (2D arrays)
-                    startPartial = omp_get_wtime();
-                    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-                    if (cudaStatus1 != cudaSuccess)
-                    {
-                        printf("cudaMemcpy failed!\n");
-                        exit(EXIT_FAILURE);
-                    }
-                    finishPartial = omp_get_wtime();
-                    elapsedMemCopy += finishPartial - startPartial;
-                    elapsed4thMemCopy += finishPartial - startPartial;
-
-                    fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                    for (i = 0; i < N; i++)
-                    {
-                        for (j = 0; j < N; j++)
-                        {
-                            index = i * N + j;
-                            fprintf(fpFrames, "%lf ", V[index]);
-                        }
-                        fprintf(fpFrames, "\n");
-                    }
-                }
-                finishPartial = omp_get_wtime();
-                elapsedWriting += finishPartial - startPartial;
-            }
-
             // Update time step counter
             timeStepCounter++;
         }
@@ -262,15 +225,44 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         elapsedTotal = finishTotal - startTotal;        
     }
 
+    //Copy memory from device to host of the matrices (2D arrays)
+    startPartial = omp_get_wtime();
+    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+    if (cudaStatus1 != cudaSuccess)
+    {
+        printf("cudaMemcpy failed!\n");
+        exit(EXIT_FAILURE);
+    }
+    finishPartial = omp_get_wtime();
+    elapsedMemCopy += finishPartial - startPartial;
+    elapsed4thMemCopy += finishPartial - startPartial;
+
+    // Save last frame
+    char lastFrameFileName[MAX_STRING_SIZE];
+    sprintf(lastFrameFileName, "last-%.4lf-%.3lf.txt", delta_t, delta_x);
+    FILE *fpLast;
+    sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
+    fpLast = fopen(aux, "w");
+    for (i = 0; i < N; i++)
+    {
+        for (j = 0; j < N; j++)
+        {
+            index = i * N + j;
+            fprintf(fpLast, "%lf ", V[index]);
+        }
+        fprintf(fpLast, "\n");
+    }
+    fclose(fpLast);
+
     // Write infos to file
     fprintf(fpInfos, "1st Part execution time: %lf seconds\n", elapsed1stPart);
     fprintf(fpInfos, "2nd Part execution time: %lf seconds\n", elapsed2ndPart);
     fprintf(fpInfos, "Writing time: %lf seconds\n", elapsedWriting);
     fprintf(fpInfos, "Total execution time with writings: %lf seconds\n", elapsedTotal);
-    
+    ////////////////////////////////////////////////////
     fprintf(fpInfos, "\nFor 1st Part and Transpose -> Grid size %d, Block size %d\n", GRID_SIZE, BLOCK_SIZE);
     fprintf(fpInfos, "Total threads: %d\n", GRID_SIZE*BLOCK_SIZE);
-
+    ////////////////////////////////////////////////////
     fprintf(fpInfos, "\nFor 2nd Part -> Grid size: %d, Block size: %d\n", numBlocks, blockSize);
     fprintf(fpInfos, "Total threads: %d\n", numBlocks*blockSize);
     fprintf(fpInfos, "1st Thomas algorithm time: %lf seconds\n", elapsed1stThomas);
@@ -281,11 +273,10 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     fprintf(fpInfos, "Memory copy time (device to device): %lf seconds\n", elapsed2ndMemCopy);
     fprintf(fpInfos, "Memory copy time for velocity: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
-    
+    ////////////////////////////////////////////////////
     fprintf(fpInfos, "\ntheta = %lf\n", theta_implicit);
 
     // Close files
-    fclose(fpFrames);
     fclose(fpInfos);
 
     // Free memory

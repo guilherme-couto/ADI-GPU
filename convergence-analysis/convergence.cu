@@ -24,5 +24,4 @@ int main(int argc, char *argv[])
     runSimulation(method, delta_t, delta_x, theta);
 
     return 0;
-
 }

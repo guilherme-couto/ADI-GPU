@@ -1,5 +1,4 @@
 from execution import *
-import sys
 
 # Compile (sm_80 for A100-Ampere; sm_86 for RTX3050-Ampere; sm_89 for RTX 4070-Ada)
 os.system(f'nvcc -Xcompiler -fopenmp -lpthread -lcusparse main.cu -o main -O3 -arch=sm_89')
