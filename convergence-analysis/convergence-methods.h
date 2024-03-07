@@ -10,8 +10,9 @@ real elapsed1stPart = 0.0, elapsed2ndPart = 0.0;
 void runSimulation(char *method, real delta_t, real delta_x, real theta)
 {
     // Number of steps
+    L = 1.0;
     int N = round(L / delta_x) + 1;               // Spatial steps (square tissue)
-    int M = 100;               // Number of time steps
+    int M = 100;                                  // Number of time steps
 
     // Allocate and populate time array
     real *time;
@@ -46,9 +47,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     real theta_explicit = 0.0;
     if (strcmp(method, "theta-ADI") == 0)
     {
-        theta_implicit = theta;
-        theta_explicit = 1.0 - theta_implicit;
-        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta_implicit*phi);
+        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta*phi);
     }
 
     // Discritized limits of fibrotic area
@@ -81,7 +80,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
 
     // File names
     char infosFileName[MAX_STRING_SIZE];
-    sprintf(infosFileName, "infos-%.4lf-%.3lf.txt", delta_t, delta_x);
+    sprintf(infosFileName, "infos-%.8lf-%.6lf.txt", delta_t, delta_x);
 
     // File pointers
     FILE *fpInfos;
@@ -155,7 +154,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             startPartial = omp_get_wtime();
 
             // Solve the reaction and forcing term part
-            parallelRHSForcing_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_Rv, N, timeStep, delta_t, delta_x, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            parallelRHSForcing_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_Rv, N, timeStep, delta_t, delta_x, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
 
             // Finish measuring 1st part execution time
@@ -165,7 +164,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // Prepare right side of Thomas algorithm with explicit diffusion on j
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, (1.0 - theta), discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
             cudaDeviceSynchronize();     
             finishPartial = omp_get_wtime();
             elapsed1stRHS += finishPartial - startPartial;
@@ -188,7 +187,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // Prepare right side of Thomas algorithm with explicit diffusion on i
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, (1.0 - theta), discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndRHS += finishPartial - startPartial;
@@ -239,7 +238,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
 
     // Save last frame
     char lastFrameFileName[MAX_STRING_SIZE];
-    sprintf(lastFrameFileName, "last-%.4lf-%.3lf.txt", delta_t, delta_x);
+    sprintf(lastFrameFileName, "last-%.8lf-%.6lf.txt", delta_t, delta_x);
     FILE *fpLast;
     sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
     fpLast = fopen(aux, "w");
@@ -274,7 +273,8 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     fprintf(fpInfos, "Memory copy time for velocity: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     ////////////////////////////////////////////////////
-    fprintf(fpInfos, "\ntheta = %lf\n", theta_implicit);
+    fprintf(fpInfos, "\ntheta = %lf\n", theta);
+    fprintf(fpInfos, "L = %lf, N = %d, M = %d\n", L, N, M);
 
     // Close files
     fclose(fpInfos);

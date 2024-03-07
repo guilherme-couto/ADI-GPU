@@ -859,23 +859,28 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     real *lb = (real *)malloc(N * sizeof(real));
     real *lc = (real *)malloc(N * sizeof(real));
 
-    real theta_implicit = 0.0;
-    real theta_explicit = 0.0;
+    // For the Theta method, it will be necessary new auxiliary arrays to be multiplied by 1-theta
+    real *la2, *lb2, *lc2;
+
     if (strcmp(method, "OS-ADI") == 0)
         populateDiagonalThomasAlgorithm(la, lb, lc, N, phi);
     else if (strcmp(method, "SSI-ADI") == 0 || strcmp(method, "MOSI-ADI") == 0)
-    {
-        theta_implicit = 0.5;
-        theta_explicit = 1.0 - theta_implicit;
-        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta_implicit*phi);
-    }
+        populateDiagonalThomasAlgorithm(la, lb, lc, N, 0.5*phi);
     else if (strcmp(method, "theta-ADI") == 0)
     {
-        theta_implicit = theta;
-        theta_explicit = 1.0 - theta_implicit;
-        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta_implicit*phi);
+        populateDiagonalThomasAlgorithm(la, lb, lc, N, theta*phi);
+
+        // Mallloc new arrays
+        la2 = (real *)malloc(N * sizeof(real));
+        lb2 = (real *)malloc(N * sizeof(real));
+        lc2 = (real *)malloc(N * sizeof(real));
+        populateDiagonalThomasAlgorithm(la2, lb2, lc2, N, (1-theta)*phi);
     }
-    
+        
+    // Prefactorization
+    prefactorizationThomasAlgorithm(la, lb, lc, N);
+    if (strcmp(method, "theta-ADI") == 0)
+        prefactorizationThomasAlgorithm(la2, lb2, lc2, N);
 
     // Discretized limits of stimulation area
     int discS1xLimit = round(stim1xLimit / deltax);
@@ -894,7 +899,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     // File names
     char framesFileName[MAX_STRING_SIZE], infosFileName[MAX_STRING_SIZE];
     sprintf(framesFileName, "frames-%d-%.3lf.txt", numberThreads, deltat);
-    sprintf(infosFileName, "infos-%d-%.3lf-%.2lf.txt", numberThreads, deltat, theta_implicit);
+    sprintf(infosFileName, "infos-%d-%.3lf-%.2lf.txt", numberThreads, deltat, theta);
     int saverate = ceil(M / 100.0);
     FILE *fpFrames, *fpInfos;
 
@@ -932,6 +937,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
     real *d_V, *d_W, *d_rightside, *d_solution, *d_Rv;
     real *d_la, *d_lb, *d_lc;
+    real *d_la2, *d_lb2, *d_lc2;
     cudaError_t cudaStatus1, cudaStatus2, cudaStatus3, cudaStatus4, cudaStatus5, cudaStatus6, cudaStatus7, cudaStatus8;
     
     cudaStatus1 = cudaMalloc(&d_V, N * N * sizeof(real));
@@ -948,6 +954,18 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
         exit(EXIT_FAILURE);
     }
     printf("All cudaMallocs done!\n");
+    
+    if (strcmp(method, "theta-ADI") == 0)
+    {
+        cudaStatus1 = cudaMalloc(&d_la2, N * sizeof(real));
+        cudaStatus2 = cudaMalloc(&d_lb2, N * sizeof(real));
+        cudaStatus3 = cudaMalloc(&d_lc2, N * sizeof(real));
+        if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess || cudaStatus3 != cudaSuccess)
+        {
+            printf("cudaMalloc failed for theta-Method second aux arrays for Thomas!\n");
+            exit(EXIT_FAILURE);
+        }
+    }
 
     // Copy memory from host to device of the matrices (2D arrays)
     cudaStatus1 = cudaMemcpy(d_V, V, N * N * sizeof(real), cudaMemcpyHostToDevice);
@@ -958,9 +976,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
         exit(EXIT_FAILURE);
     }
 
-    // Prefactorization
-    prefactorizationThomasAlgorithm(la, lb, lc, N);
-
     // Copy memory of diagonals from host to device
     cudaStatus1 = cudaMemcpy(d_la, la, N * sizeof(real), cudaMemcpyHostToDevice);
     cudaStatus2 = cudaMemcpy(d_lb, lb, N * sizeof(real), cudaMemcpyHostToDevice);
@@ -969,6 +984,18 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     {
         printf("cudaMemcpy failed 2nd call!\n");
         exit(EXIT_FAILURE);
+    }
+
+    if (strcmp(method, "theta-ADI") == 0)
+    {
+        cudaStatus1 = cudaMemcpy(d_la2, la2, N * sizeof(real), cudaMemcpyHostToDevice);
+        cudaStatus2 = cudaMemcpy(d_lb2, lb2, N * sizeof(real), cudaMemcpyHostToDevice);
+        cudaStatus3 = cudaMemcpy(d_lc2, lc2, N * sizeof(real), cudaMemcpyHostToDevice);
+        if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess || cudaStatus3 != cudaSuccess)
+        {
+            printf("cudaMemcpy failed for theta-Method second aux arrays for Thomas!\n");
+            exit(EXIT_FAILURE);
+        }
     }
 
     int GRID_SIZE = ceil((N*N*1.0) / (BLOCK_SIZE*1.0));
@@ -1392,7 +1419,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             startPartial = omp_get_wtime();
 
             // Resolve ODEs
-            parallelODE_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_W, d_Rv, N, timeStep, deltat, phi, theta_explicit, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            parallelODE_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_W, d_Rv, N, timeStep, deltat, phi, theta, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
 
             // Finish measuring ODE execution time
@@ -1402,7 +1429,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Prepare right side of Thomas algorithm with explicit diffusion on j
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            // RHS with (1 - theta) factor
+            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, 1.0-theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
             cudaDeviceSynchronize();     
             finishPartial = omp_get_wtime();
             elapsed1stRHS += finishPartial - startPartial;
@@ -1410,7 +1438,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // 1st: Implicit y-axis diffusion (lines)
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc); // With theta factor
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
@@ -1425,7 +1453,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Prepare right side of Thomas algorithm with explicit diffusion on i
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta_explicit, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            // RHS with theta factor
+            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndRHS += finishPartial - startPartial;
@@ -1433,7 +1462,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la2, d_lb2, d_lc2);  // With (1-theta) factor
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;
@@ -1456,31 +1485,31 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             {
                 // Write frames to file
                 startPartial = omp_get_wtime();
-                if (timeStepCounter % saverate == 0 && saveDataToGif == true)
-                {
-                //Copy memory from device to host of the matrices (2D arrays)
-                startPartial = omp_get_wtime();
-                cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-                if (cudaStatus1 != cudaSuccess)
-                {
-                    printf("cudaMemcpy failed 5th call!\n");
-                    exit(EXIT_FAILURE);
-                }
-                finishPartial = omp_get_wtime();
-                elapsedMemCopy += finishPartial - startPartial;
-                elapsed4thMemCopy += finishPartial - startPartial;
+                // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                // {
+                //     //Copy memory from device to host of the matrices (2D arrays)
+                //     startPartial = omp_get_wtime();
+                //     cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
+                //     if (cudaStatus1 != cudaSuccess)
+                //     {
+                //         printf("cudaMemcpy failed 5th call!\n");
+                //         exit(EXIT_FAILURE);
+                //     }
+                //     finishPartial = omp_get_wtime();
+                //     elapsedMemCopy += finishPartial - startPartial;
+                //     elapsed4thMemCopy += finishPartial - startPartial;
 
-                fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
-                for (i = 0; i < N; i++)
-                {
-                    for (j = 0; j < N; j++)
-                    {
-                        index = i * N + j;
-                        fprintf(fpFrames, "%lf ", V[index]);
-                    }
-                    fprintf(fpFrames, "\n");
-                }
-                }
+                //     fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                //     for (i = 0; i < N; i++)
+                //     {
+                //         for (j = 0; j < N; j++)
+                //         {
+                //             index = i * N + j;
+                //             fprintf(fpFrames, "%lf ", V[index]);
+                //         }
+                //         fprintf(fpFrames, "\n");
+                //     }
+                // }
                 finishPartial = omp_get_wtime();
                 elapsedWriting += finishPartial - startPartial;
                 
@@ -1546,7 +1575,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     fprintf(fpInfos, "Memory copy time for velocity: %lf seconds\n", elapsed4thMemCopy);
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
-    fprintf(fpInfos, "\ntheta = %lf\n", theta_implicit);
+    fprintf(fpInfos, "\ntheta = %lf\n", theta);
 
     if (haveFibrosis)
     {
@@ -1591,6 +1620,13 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     free(la);
     free(lb);
     free(lc);
+    if (strcmp(method, "theta-ADI") == 0)
+    {
+        free(la2);
+        free(lb2);
+        free(lc2);
+    }
+    
 
     // Free memory from device
     cudaFree(d_V);
@@ -1601,6 +1637,12 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     cudaFree(d_la);
     cudaFree(d_lb);
     cudaFree(d_lc);
+    if (strcmp(method, "theta-ADI") == 0)
+    {
+        cudaFree(d_la2);
+        cudaFree(d_lb2);
+        cudaFree(d_lc2);
+    }
     // cudaFree(p_buffer);
 
 }

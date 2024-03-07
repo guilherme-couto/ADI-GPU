@@ -3,7 +3,7 @@
 
 #include "../include/includes.h"
 
-__constant__ real d_L = 2.0;
+__constant__ real d_L = 1.0;
 __constant__ real d_pi = 3.14159265358979323846;
 
 #if defined(AFHN)

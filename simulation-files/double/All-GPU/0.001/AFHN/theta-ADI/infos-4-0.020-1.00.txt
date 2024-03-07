@@ -1,0 +1,23 @@
+S1 velocity: 0.587467 m/s
+S2 begin: 120.0 ms
+PDE/ODE ratio: 1
+ODE execution time: 72.405447 seconds
+PDE execution time: 73.243942 seconds
+Writing time: 0.000307 seconds
+Total execution time with writings: 155.376984 seconds
+
+For ODE and Transpose -> Grid size 125126, Block size 32
+Total threads: 4004032
+
+For PDE -> Grid size: 20, Block size: 128
+Total threads: 2560
+1st Thomas algorithm time: 22.535807 seconds
+2nd Thomas algorithm time: 22.504171 seconds
+Transpose time: 8.337884 seconds
+1st RHS preparation time: 9.987739 seconds
+2nd RHS preparation time: 9.878341 seconds
+Memory copy time (device to device): 0.230527 seconds
+Memory copy time for velocity: 9.487590 seconds
+Total memory copy time: 9.718117 seconds
+
+theta = 1.000000
