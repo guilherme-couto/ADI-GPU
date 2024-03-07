@@ -32,7 +32,7 @@ __global__ void parallelRHSForcing_theta(real *d_V, real *d_Rv, unsigned int N, 
         
         Vtilde = actualV + (delta_t * actualRHS_V) + (phi * diffusion);
 
-        real tildeRHS_V = (1.0 / (d_Cm * d_chi)) * (-d_G*Vtilde + d_forcingTerm(i, j, delta_x, t+1.0*delta_t));     // alpha = 1.0 (Heun's) / 0.5 (midpoint) / 2/3 (Ralston's)
+        real tildeRHS_V = (1.0 / (d_Cm * d_chi)) * (-d_G*Vtilde + d_forcingTerm(i, j, delta_x, t+(1.0*delta_t)));     // alpha = 1.0 (Heun's) / 0.5 (midpoint) / 2/3 (Ralston's)
 
         // Update V reaction term
         d_Rv[index] = delta_t * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V));

@@ -1454,7 +1454,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Call the kernel
             startPartial = omp_get_wtime();
             // RHS with theta factor
-            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, 1.0-theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndRHS += finishPartial - startPartial;
@@ -1462,7 +1462,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la2, d_lb2, d_lc2);  // With (1-theta) factor
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);  // With (1-theta) factor
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;

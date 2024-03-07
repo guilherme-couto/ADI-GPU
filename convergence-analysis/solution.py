@@ -6,9 +6,9 @@ L = 1.0
 pi = 3.14159265358979323846
 M = 100     # Number of time iterations
 
-dts = ['0.00000144', '0.00000256', '0.00000400'] 
-dxs_1st = ['0.006000', '0.008000', '0.010000']          # alpha = 0.04 (dt = a*dx^2)
-dxs_2nd = ['0.000144', '0.000256', '0.000400']          # alpha = 0.01 (dt = a*dx)
+dts = ['0.00001000', '0.00002000', '0.00004000'] 
+dxs_1st = ['0.001000', '0.002000', '0.004000']          # alpha = 0.04 (dt = a*dx^2)
+dxs_2nd = ['0.001000', '0.002000', '0.004000']          # alpha = 0.01 (dt = a*dx)
 
 thetas = ['0.50']
 
@@ -98,7 +98,8 @@ def calculate_slope(data):
         print(f'Slope for 1st Order: {slope_1st}')
         print(f'Slope for 2nd Order: {slope_2nd}')
         
-# run_all_simulations()
+
+run_all_simulations()
 data = read_files()
 plot_convergence(data)
 calculate_slope(data)

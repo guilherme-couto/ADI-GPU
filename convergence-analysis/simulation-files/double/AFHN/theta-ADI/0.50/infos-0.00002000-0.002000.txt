@@ -1,0 +1,21 @@
+1st Part execution time: 0.031356 seconds
+2nd Part execution time: 0.049834 seconds
+Writing time: 0.000000 seconds
+Total execution time with writings: 0.081441 seconds
+
+For 1st Part and Transpose -> Grid size 7844, Block size 32
+Total threads: 251008
+
+For 2nd Part -> Grid size: 5, Block size: 128
+Total threads: 640
+1st Thomas algorithm time: 0.022124 seconds
+2nd Thomas algorithm time: 0.021622 seconds
+Transpose time: 0.001993 seconds
+1st RHS preparation time: 0.002605 seconds
+2nd RHS preparation time: 0.001491 seconds
+Memory copy time (device to device): 0.000236 seconds
+Memory copy time for velocity: 0.000333 seconds
+Total memory copy time: 0.000570 seconds
+
+theta = 0.500000
+L = 1.000000, N = 501, M = 100

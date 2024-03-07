@@ -216,6 +216,7 @@ __global__ void parallelODE_theta(real *d_V, real *d_W, real *d_Rv, unsigned int
         real actualRHS_W = d_reactionW(actualV, actualW);
 
         Vtilde = actualV + (deltat * (actualRHS_V + stim)) + (phi * diffusion);
+        //Vtilde = actualV + (deltat * (actualRHS_V + stim));
         Wtilde = actualW + deltat * actualRHS_W;
 
         real tildeRHS_V = d_reactionV(Vtilde, Wtilde);
