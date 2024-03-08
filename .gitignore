@@ -1,3 +1,7 @@
+last*.txt
+infos*.txt
+frames*.txt
+
 # Prerequisites
 *.d
 
