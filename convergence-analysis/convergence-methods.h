@@ -247,7 +247,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         for (j = 0; j < N; j++)
         {
             index = i * N + j;
-            fprintf(fpLast, "%lf ", V[index]);
+            fprintf(fpLast, "%e ", V[index]);
         }
         fprintf(fpLast, "\n");
     }
