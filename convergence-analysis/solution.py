@@ -5,7 +5,6 @@ import os
 L = 1.0
 pi = 3.14159265358979323846
 M = 100     # Number of time iterations
-thetas = ['0.50']
 real_type = 'double'
 
 def run_all_simulations():
@@ -42,11 +41,6 @@ def read_files():
             for line in open(filename, 'r'):
                 line = line.split()
                 for j in range(len(line)):
-                    if j == 50 and i == 50 and dt == '0.00000100':
-                        print(line[j])
-                        print(float(line[j]))
-                        print(solution(i*float(dx), j*float(dx), (M)*float(dt)))
-                        print(float(solution(i*float(dx), j*float(dx), (M)*float(dt))))
                     simulation_minus_solution.append(float(line[j]) - solution(i*float(dx), j*float(dx), (M)*float(dt)))
                 i += 1
             
@@ -63,37 +57,39 @@ def plot_convergence(data, alpha):
         errors_2nd = []
         for dt in dts:
             errors_2nd.append(data[theta][dt][dxs_2nd[dts.index(dt)]]['error'])
-
-        plt.loglog([float(dt) for dt in dts], errors_2nd, '-o', label=f'2nd Order a = {(alpha):.2f}')
-        plt.xlabel('dt')
-        plt.ylabel('Error')
-        plt.title(f'Convergence Analysis - Theta = {theta}')
-        plt.legend()
-        plt.savefig(f'./convergence-analysis-{theta}.png')
-        plt.show()
+        plt.loglog([float(dt) for dt in dts], errors_2nd, '-o', label=f'theta {theta}')
+    
+    plt.xlabel('dt')
+    plt.ylabel('Error')
+    plt.title(f'Convergence Analysis - 2nd Order (a = {(alpha):.2f})')
+    plt.legend()
+    plt.savefig(f'./convergence-analysis.png')
+    plt.show()
 
 # Function to calculate the slope of the convergence analysis
 def calculate_slope(data, alpha):
+    print(f'Slopes for 2nd Order (a = {(alpha):.3f})')
     for theta in thetas:
         errors_2nd = []
+        slopes = []
         for dt in dts:
             errors_2nd.append(data[theta][dt][dxs_2nd[dts.index(dt)]]['error'])
+        for index in range(1, len(errors_2nd)):
+            slopes.append(np.log(errors_2nd[index] / errors_2nd[index-1]) / np.log(float(dts[index]) / float(dts[index-1])))
 
         slope_2nd = np.log(errors_2nd[-1] / errors_2nd[0]) / np.log(float(dts[-1]) / float(dts[0]))
-        print(f'Slope for 2nd Order (a = {(alpha):.3f}): {slope_2nd}')
+        print(f'With theta {theta}: {slope_2nd} (mean: {np.mean(np.array(slopes))})')
+        
 
 # 1st order (dt = a*dx²)
 # 2nd order (dt = a*dx)
-alphas = [0.01]
-for alpha in alphas:
-    values = np.linspace(0.000001, 0.0001, 10)
-    dts = [f'{value:.8f}' for value in values]
-    dxs_2nd = [f'{(value / alpha):.6f}' for value in values]
+alpha = 0.01
+thetas = ['0.50', '0.67', '1.00']
+values = np.linspace(0.000013, 0.0001, 10)
+dts = [f'{value:.8f}' for value in values]
+dxs_2nd = [f'{(value / alpha):.6f}' for value in values]
 
-    #dts.pop(0)
-    #dxs_2nd.pop(0)
-    
-    #run_all_simulations()
-    data = read_files()
-    plot_convergence(data, alpha)
-    calculate_slope(data, alpha)
+run_all_simulations()
+data = read_files()
+plot_convergence(data, alpha)
+calculate_slope(data, alpha)

@@ -106,7 +106,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         printf("cudaMalloc failed!\n");
         exit(EXIT_FAILURE);
     }
-    printf("All cudaMallocs done!\n");
 
     // Copy memory from host to device of the matrices (2D arrays)
     cudaStatus1 = cudaMemcpy(d_V, V, N * N * sizeof(real), cudaMemcpyHostToDevice);
@@ -125,16 +124,26 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         printf("cudaMemcpy failed!\n");
         exit(EXIT_FAILURE);
     }
+    printf("All cudaMallocs done!\n");
 
     // Block and grid size
     // For parallel Thomas
-    int numBlocks = N / 100; 
+    printf("N = %d\n", N);
+    int numBlocks = N / 100;
+    if (numBlocks == 0)
+        numBlocks = 1;
     int blockSize = round(N / numBlocks) + 1;
+        
     if (blockSize % 32 != 0)
         blockSize = 32 * ((blockSize / 32) + 1);
     
     // For other kernels
     int GRID_SIZE = ceil((N*N*1.0) / (BLOCK_SIZE*1.0));
+    if (GRID_SIZE == 0)
+        GRID_SIZE = 1;
+
+    printf("For 1st Part and Transpose -> Grid size %d, Block size %d\n", GRID_SIZE, BLOCK_SIZE);
+    printf("For 2nd Part -> Grid size: %d, Block size: %d\n", numBlocks, blockSize);
 
     /*--------------------
     --    theta ADI     --
@@ -142,6 +151,8 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     int index;
     if (strcmp(method, "theta-ADI") == 0)
     {
+        printf("Simulation started with N = %d!\n", N);
+
         // Start measuring total execution time
         startTotal = omp_get_wtime();
 
