@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     {
         if (strcmp(mode, "CPU") == 0)
         {
-            runAllinCPU(options, method, deltat, numberThreads, delta_x, mode);
+            runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta);
         }
         else if (strcmp(mode, "GPU") == 0)
         {
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta);
             }
             else if (strcmp(mode, "GPU") == 0)
             {

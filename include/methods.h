@@ -43,7 +43,7 @@ real lowerVWBound = 999.0, upperVWBound = 0.0;
 // ##                                        ##
 // ############################################
 #if defined(AFHN)
-void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode)
+void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode, real theta)
 {
     // Get options
     bool haveFibrosis = options[0];
@@ -374,8 +374,8 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                         tildeRHS_V = reactionV(Vtilde[i][j], Wtilde[i][j]);
                         tildeRHS_W = reactionW(Vtilde[i][j], Wtilde[i][j]);
 
-                        Rv[i][j] = deltat * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V) + stim);
-                        W[i][j] = actualW + deltat * d_reactionW(Vtilde[i][j], Wtilde[i][j]);
+                        Rv[i][j] = deltat * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V) + Istim);
+                        W[i][j] = actualW + deltat * reactionW(Vtilde[i][j], Wtilde[i][j]);
                     }
                 }
                 
@@ -388,7 +388,18 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                     startPartial = omp_get_wtime();
                 }
 
-                // TODO: Fazer RHS 
+                // Resolve PDEs (Diffusion)
+                // 1st: Implicit y-axis diffusion (lines): right side with explicit x-axis diffusion (columns)
+                // Update right side of Thomas algorithm
+                #pragma omp barrier
+                #pragma omp for collapse(2)
+                for (i = 0; i < N; i++)
+                {
+                    for (j = 0; j < N; j++)
+                    {
+                        rightside[j][i] = (V[i][j] + ((1-theta) * phi * jDiffusion2nd(i, j, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin))) + (0.5 * Rv[i][j]);
+                    }
+                }
 
                 // Resolve PDEs (Diffusion)
                 // 1st: Implicit y-axis diffusion (lines)
@@ -399,17 +410,17 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                     // Check if i is in fibrotic region
                     if (i >= discFibyMin && i <= discFibyMax)
                     {
-                        ThomasAlgorithm2ndCPU(rightside[i], solution[i], N, phi, c_[i], d_[i], discFibxMin, discFibxMax, fibrosisFactor);
+                        ThomasAlgorithm2ndCPU(rightside[i], solution[i], N, (theta * phi), c_[i], d_[i], discFibxMin, discFibxMax, fibrosisFactor);
                     }
                     else
                     {
-                        ThomasAlgorithm2ndCPU(rightside[i], solution[i], N, phi, c_[i], d_[i], N, 0, fibrosisFactor);
+                        ThomasAlgorithm2ndCPU(rightside[i], solution[i], N, (theta * phi), c_[i], d_[i], N, 0, fibrosisFactor);
                     }
 
                     // Update V
                     for (j = 0; j < N; j++)
                     {
-                        Vtilde[j][i] = solution[i][j];
+                        V[j][i] = solution[i][j];
                     }
                 }
 
@@ -420,6 +431,18 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                     startPartial = omp_get_wtime();
                 }
 
+                // 2nd: Implicit x-axis diffusion (columns): right side with explicit y-axis diffusion (lines)
+                // Update right side of Thomas algorithm
+                #pragma omp barrier
+                #pragma omp for collapse(2)
+                for (i = 0; i < N; i++)
+                {
+                    for (j = 0; j < N; j++)
+                    {
+                        rightside[i][j] = (V[i][j] + ((1-theta) * phi * iDiffusion2nd(i, j, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin))) + (0.5 * Rv[i][j]);
+                    }
+                }
+
                 // 2nd: Implicit x-axis diffusion (columns)
                 #pragma omp barrier
                 #pragma omp for
@@ -428,11 +451,11 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                     // Check if i is in fibrotic region
                     if (i >= discFibxMin && i <= discFibxMax)
                     {
-                        ThomasAlgorithm2ndCPU(Vtilde[i], V[i], N, phi, c_[i], d_[i], discFibyMin, discFibyMax, fibrosisFactor);
+                        ThomasAlgorithm2ndCPU(rightside[i], V[i], N, (theta * phi), c_[i], d_[i], discFibyMin, discFibyMax, fibrosisFactor);
                     }
                     else
                     {
-                        ThomasAlgorithm2ndCPU(Vtilde[i], V[i], N, phi, c_[i], d_[i], N, 0, fibrosisFactor);
+                        ThomasAlgorithm2ndCPU(rightside[i], V[i], N, (theta * phi), c_[i], d_[i], N, 0, fibrosisFactor);
                     }
                 }
                 
@@ -503,16 +526,17 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
 
     fprintf(fpInfos, "\n1st Thomas algorithm (+ transpose) execution time: %lf seconds\n", elapsed1stThomas);
     fprintf(fpInfos, "2nd Thomas algorithm execution time: %lf seconds\n", elapsed2ndThomas);
-
+    
+    fprintf(fpInfos, "\ntheta = %lf\n", theta);
     if (haveFibrosis)
     {
         fprintf(fpInfos, "Fibrosis factor: %.2lf\n", fibrosisFactor);
         fprintf(fpInfos, "Fibrosis region: (%.2lf, %.2lf) to (%.2lf, %.2lf)\n", fibrosisMinX, fibrosisMinY, fibrosisMaxX, fibrosisMaxY);
     }
 
-    if (saveDataToError == true)
+    /*if (saveDataToError == true)
     {
-        /*
+        
         char lastFrameFileName[MAX_STRING_SIZE];
         sprintf(lastFrameFileName, "last-%d-%.3lf-%.3lf.txt", numberThreads, deltat, deltat);
         FILE *fpLast;
@@ -527,8 +551,8 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
             fprintf(fpLast, "\n");
         }
         fclose(fpLast);
-        */
-    }
+        
+    }*/
     
     // Close files
     fclose(fpFrames);
@@ -559,7 +583,6 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
     free(solution);
     free(c_);
     free(d_);
-
 
 }
 
@@ -1595,8 +1618,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Prepare right side of Thomas algorithm with explicit diffusion on j
             // Call the kernel
             startPartial = omp_get_wtime();
-            // RHS with (1 - theta) factor
-            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, 1.0-theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
             cudaDeviceSynchronize();     
             finishPartial = omp_get_wtime();
             elapsed1stRHS += finishPartial - startPartial;
@@ -1604,7 +1626,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // 1st: Implicit y-axis diffusion (lines)
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc); // With theta factor
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
@@ -1619,8 +1641,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // Prepare right side of Thomas algorithm with explicit diffusion on i
             // Call the kernel
             startPartial = omp_get_wtime();
-            // RHS with theta factor
-            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, 1.0-theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_rightside, d_Rv, N, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndRHS += finishPartial - startPartial;
@@ -1628,7 +1649,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc);  // With (1-theta) factor
+            parallelThomas<<<numBlocks, blockSize>>>(d_rightside, N, d_la, d_lb, d_lc); 
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;

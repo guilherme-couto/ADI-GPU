@@ -319,7 +319,7 @@ __global__ void prepareRighthandSide_iDiffusion_theta(real *d_V, real *d_rightsi
     {
         int i = index / N;
         int j = index % N;
-        d_rightside[index] = d_V[index] + (theta * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        d_rightside[index] = d_V[index] + ((1-theta) * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
 }
 
@@ -332,7 +332,7 @@ __global__ void prepareRighthandSide_jDiffusion_theta(real *d_V, real *d_rightsi
         int i = index / N;
         int j = index % N;
         int transposedIndex = j * N + i;
-        d_rightside[transposedIndex] = d_V[index] + (theta * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        d_rightside[transposedIndex] = d_V[index] + ((1-theta) * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
 }
 
