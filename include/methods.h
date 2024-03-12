@@ -87,7 +87,7 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
 
     // Variables
     int i, j; // i for y-axis and j for x-axis
-    real actualV, actualW;
+    real actualV, actualW, diffusion, actualRHS_V, actualRHS_W, tildeRHS_V, tildeRHS_W;
     real Rw;
     real **Vtilde, **Wtilde, **Rv, **rightside, **solution;
     Vtilde = (real **)malloc(N * sizeof(real *));
@@ -223,6 +223,172 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                     elapsedODE += finishPartial - startPartial;
                     startPartial = omp_get_wtime();
                 }
+
+                // Resolve PDEs (Diffusion)
+                // 1st: Implicit y-axis diffusion (lines)
+                #pragma omp barrier
+                #pragma omp for
+                for (i = 0; i < N; i++)
+                {
+                    // Check if i is in fibrotic region
+                    if (i >= discFibyMin && i <= discFibyMax)
+                    {
+                        ThomasAlgorithm2ndCPU(rightside[i], solution[i], N, phi, c_[i], d_[i], discFibxMin, discFibxMax, fibrosisFactor);
+                    }
+                    else
+                    {
+                        ThomasAlgorithm2ndCPU(rightside[i], solution[i], N, phi, c_[i], d_[i], N, 0, fibrosisFactor);
+                    }
+
+                    // Update V
+                    for (j = 0; j < N; j++)
+                    {
+                        Vtilde[j][i] = solution[i][j];
+                    }
+                }
+
+                // Finish measuring 1st Thomas algorithm execution time and start measuring 2nd Thomas algorithm execution time
+                #pragma omp master
+                {
+                    elapsed1stThomas += finishPartial - startPartial;
+                    startPartial = omp_get_wtime();
+                }
+
+                // 2nd: Implicit x-axis diffusion (columns)
+                #pragma omp barrier
+                #pragma omp for
+                for (i = 0; i < N; i++)
+                {
+                    // Check if i is in fibrotic region
+                    if (i >= discFibxMin && i <= discFibxMax)
+                    {
+                        ThomasAlgorithm2ndCPU(Vtilde[i], V[i], N, phi, c_[i], d_[i], discFibyMin, discFibyMax, fibrosisFactor);
+                    }
+                    else
+                    {
+                        ThomasAlgorithm2ndCPU(Vtilde[i], V[i], N, phi, c_[i], d_[i], N, 0, fibrosisFactor);
+                    }
+                }
+                
+                // Finish measuring PDE execution time
+                #pragma omp master
+                {                  
+                    finishPartial = omp_get_wtime();
+                    elapsed2ndThomas += finishPartial - startPartial;
+                    elapsedPDE += elapsed1stThomas + elapsed2ndThomas;
+                }
+
+                // Save frames
+                #pragma omp master
+                {
+                    if (VWTag == false)
+                    {
+                        // Write frames to file
+                        // startPartial = omp_get_wtime();
+                        // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
+                        // {
+                        //     fprintf(fpFrames, "%lf\n", time[timeStepCounter]);
+                        //     for (i = 0; i < N; i++)
+                        //     {
+                        //         for (j = 0; j < N; j++)
+                        //         {
+                        //             fprintf(fpFrames, "%lf ", V[i][j]);
+                        //         }
+                        //         fprintf(fpFrames, "\n");
+                        //     }
+                        // }
+                        // finishPartial = omp_get_wtime();
+                        // elapsedWriting += finishPartial - startPartial;
+
+                        // Check S1 velocity
+                        if (S1VelocityTag)
+                        {
+                            if (V[0][N - 1] >= 80)
+                            {
+                                S1Velocity = ((10 * (L - stim1xLimit)) / (time[timeStepCounter]));
+                                S1VelocityTag = false;
+                            }
+                        }
+                    }
+                }
+
+                // Update time step counter
+                #pragma omp master
+                {
+                    timeStepCounter++;
+                }
+                #pragma omp barrier
+            }
+        }
+
+        // Finish measuring total execution time
+        finishTotal = omp_get_wtime();
+        elapsedTotal = finishTotal - startTotal;
+    }
+
+    else if (strcmp(method, "theta-ADI") == 0)
+    {
+        // Start measuring total execution time
+        startTotal = omp_get_wtime();
+
+        #pragma omp parallel num_threads(numberThreads) default(none) private(i, j, Istim, actualV, actualW, diffusion, actualRHS_V, actualRHS_W, tildeRHS_V, tildeRHS_W) \
+        shared(V, W, N, M, L, T, D, phi, deltat, time, timeStep, timeStepCounter, PdeOdeRatio, \
+        fibrosisFactor, stimStrength, stim1Duration, stim2Duration, stim1Begin, stim2Begin, stim1xLimit, stim1yLimit, \
+        discS1xLimit, discS1yLimit, discS2xMax, discS2yMax, discS2xMin, discS2yMin, discFibxMax, discFibxMin, discFibyMax, discFibyMin, \
+        c_, d_, Vtilde, Wtilde, S1Velocity, S1VelocityTag, VWTag, saverate, fpFrames, saveDataToGif, \
+        Rv, rightside, solution, startPartial, finishPartial, elapsedODE, elapsedPDE, \
+        elapsedWriting, elapsed1stThomas, elapsed2ndThomas, theta)
+        {
+            while (timeStepCounter < M)
+            {
+                // Get time step
+                timeStep = time[timeStepCounter];
+
+                // Start measuring ODE execution time
+                #pragma omp master
+                {
+                    startPartial = omp_get_wtime();
+                }
+
+                // Resolve ODEs
+                #pragma omp for collapse(2)
+                for (i = 0; i < N; i++)
+                {
+                    for (j = 0; j < N; j++)
+                    {
+                        // Stimulus
+                        Istim = stimulus(i, j, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+
+                        // Get actual V and W
+                        actualV = V[i][j];
+                        actualW = W[i][j];
+
+                        diffusion = iDiffusion2nd(i, j, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin) + jDiffusion2nd(i, j, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin);
+
+                        actualRHS_V = reactionV(actualV, actualW);
+                        actualRHS_W = reactionW(actualV, actualW);
+
+                        Vtilde[i][j] = actualV + (deltat * (actualRHS_V + Istim)) + (phi * diffusion);
+                        Wtilde[i][j] = actualW + deltat * actualRHS_W;
+
+                        tildeRHS_V = reactionV(Vtilde[i][j], Wtilde[i][j]);
+                        tildeRHS_W = reactionW(Vtilde[i][j], Wtilde[i][j]);
+
+                        Rv[i][j] = deltat * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V) + stim);
+                        W[i][j] = actualW + deltat * d_reactionW(Vtilde[i][j], Wtilde[i][j]);
+                    }
+                }
+                
+
+                // Finish measuring ODE execution time
+                #pragma omp master
+                {
+                    finishPartial = omp_get_wtime();
+                    elapsedODE += finishPartial - startPartial;
+                    startPartial = omp_get_wtime();
+                }
+
+                // TODO: Fazer RHS 
 
                 // Resolve PDEs (Diffusion)
                 // 1st: Implicit y-axis diffusion (lines)
@@ -1559,8 +1725,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     fprintf(fpInfos, "Writing time: %lf seconds\n", elapsedWriting);
     fprintf(fpInfos, "Total execution time with writings: %lf seconds\n", elapsedTotal);
     
-    // fprintf(fpInfos, "\nFor ODE and Transpose -> Grid size (%d, %d): %d, Block size (%d, %d): %d\n", grid.x, grid.y, grid.x*grid.y, block.x, block.y, block.x*block.y);
-    // fprintf(fpInfos, "Total threads: %d\n", grid.x*grid.y*block.x*block.y);
     fprintf(fpInfos, "\nFor ODE and Transpose -> Grid size %d, Block size %d\n", GRID_SIZE, BLOCK_SIZE);
     fprintf(fpInfos, "Total threads: %d\n", GRID_SIZE*BLOCK_SIZE);
 
@@ -1699,6 +1863,9 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
     real *lc = (real *)malloc(N * sizeof(real));
     populateDiagonalThomasAlgorithm(la, lb, lc, N, phi);
 
+    // Prefactorization
+    prefactorizationThomasAlgorithm(la, lb, lc, N);
+
     // Discretized limits of stimulation area
     int discS1xLimit = round(stim1xLimit / deltax);
     int discS1yLimit = round(stim1yLimit / deltay);
@@ -1780,7 +1947,7 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
     cudaStatus6 = cudaMalloc(&d_lc, N * sizeof(real));
     if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess || cudaStatus3 != cudaSuccess || cudaStatus5 != cudaSuccess || cudaStatus6 != cudaSuccess)
     {
-        printf("cudaMalloc failed 1st call!\n");
+        printf("cudaMalloc failed!\n");
         exit(EXIT_FAILURE);
     }
     printf("All cudaMallocs done!\n");
@@ -1790,12 +1957,9 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
     cudaStatus2 = cudaMemcpy(d_W, W, N * N * H * sizeof(real), cudaMemcpyHostToDevice);
     if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess)
     {
-        printf("cudaMemcpy failed 1st call!\n");
+        printf("cudaMemcpy failed!\n");
         exit(EXIT_FAILURE);
     }
-
-    // Prefactorization
-    prefactorizationThomasAlgorithm(la, lb, lc, N);
 
     // Copy memory of diagonals from host to device
     cudaStatus1 = cudaMemcpy(d_la, la, N * sizeof(real), cudaMemcpyHostToDevice);
@@ -1803,7 +1967,7 @@ void runAllinGPU3D(bool options[], char *method, real deltat, int numberThreads,
     cudaStatus3 = cudaMemcpy(d_lc, lc, N * sizeof(real), cudaMemcpyHostToDevice);
     if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess || cudaStatus3 != cudaSuccess)
     {
-        printf("cudaMemcpy failed 2nd call!\n");
+        printf("cudaMemcpy failed!\n");
         exit(EXIT_FAILURE);
     }
 
