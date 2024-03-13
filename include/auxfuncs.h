@@ -262,16 +262,45 @@ void createDirectories(char *pathToSaveData, char *method, char *cellModel, char
     strcat(path, REAL_TYPE);
     sprintf(aux, "%s %s", command, path);
     system(aux);
-    sprintf(pathToSaveData, "%s/%s", path, mode);
+    sprintf(pathToSaveData, "%s/%s", path, cellModel);
+    sprintf(aux, "%s %s", command, pathToSaveData);
+    system(aux);
+    sprintf(pathToSaveData, "%s/%s", pathToSaveData, mode);
+    sprintf(aux, "%s %s", command, pathToSaveData);
+    system(aux);    
+    sprintf(pathToSaveData, "%s/%s", pathToSaveData, method);
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
     sprintf(pathToSaveData, "%s/%.3lf", pathToSaveData, deltax);
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
-    sprintf(pathToSaveData, "%s/%s", pathToSaveData, cellModel);
+}
+
+void createDirectoriesScript(char *pathToSaveData, char *method, char *cellModel, char *mode, int numberThreads, int number_of_exec)
+{
+    char command[MAX_STRING_SIZE];
+    sprintf(command, "%s", "mkdir -p");
+    char aux[MAX_STRING_SIZE];
+    char path[MAX_STRING_SIZE] = "./script-simulation-files/";
+    strcat(path, REAL_TYPE);
+    sprintf(aux, "%s %s", command, path);
+    system(aux);
+    sprintf(pathToSaveData, "%s/%s", path, cellModel);
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
+    sprintf(pathToSaveData, "%s/%s", pathToSaveData, mode);
+    sprintf(aux, "%s %s", command, pathToSaveData);
+    system(aux);    
     sprintf(pathToSaveData, "%s/%s", pathToSaveData, method);
+    sprintf(aux, "%s %s", command, pathToSaveData);
+    system(aux);
+    sprintf(pathToSaveData, "%s/%.3lf", pathToSaveData, deltax);
+    sprintf(aux, "%s %s", command, pathToSaveData);
+    system(aux);
+    sprintf(pathToSaveData, "%s/%d", pathToSaveData, numberThreads);
+    sprintf(aux, "%s %s", command, pathToSaveData);
+    system(aux);
+    sprintf(pathToSaveData, "%s/%d", pathToSaveData, number_of_exec);
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
 }

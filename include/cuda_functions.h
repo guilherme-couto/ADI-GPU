@@ -233,7 +233,7 @@ __global__ void parallelODE_theta(real *d_V, real *d_W, real *d_Rv, unsigned int
 
         // Theta method
         d_Rv[index] = deltat * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V) + stim);
-        d_W[index] = actualW + deltat * d_reactionW(Vtilde, Wtilde);
+        d_W[index] = actualW + deltat * tildeRHS_W;
     }
 }
 

@@ -30,9 +30,9 @@ Main function
 int main(int argc, char *argv[])
 {
     // Read parameters from command line
-    if (argc != 9)
+    if (argc != 10)
     {
-        printf("Usage: %s <num_threads> <delta_t (ms)> <delta_x (cm)> <mode (CPU or GPU)> <method> <fibrosis (0-false or 1-true)> <vulnerability window (0-false or 1-true)> <only speed (0-false or 1-true)>\n", argv[0]);
+        printf("Usage: %s <num_threads> <delta_t (ms)> <delta_x (cm)> <mode (CPU or GPU)> <method> <fibrosis (0-false or 1-true)> <theta> <only speed (0-false or 1-true)> <execution id>\n", argv[0]);
         exit(1);
     }
     
@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
     real theta = atof(argv[7]);
     // bool VWmeasure = atoi(argv[7]);
     bool onlySpeed = atoi(argv[8]);
+    int number_of_exec = atoi(argv[9]);
 
     // Call method
     if (!fibrosis)
@@ -59,7 +60,7 @@ int main(int argc, char *argv[])
     {
         if (strcmp(mode, "CPU") == 0)
         {
-            runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta);
+            runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta, number_of_exec);
         }
         else if (strcmp(mode, "GPU") == 0)
         {
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
         } 
         else if (strcmp(mode, "All-GPU") == 0)
         {
-            runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta);
+            runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta, number_of_exec);
         }
         else if (strcmp(mode, "All-GPU-3D") == 0)
         {
@@ -91,7 +92,7 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta, number_of_exec);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
@@ -99,7 +100,7 @@ int main(int argc, char *argv[])
             }
             else if (strcmp(mode, "All-GPU") == 0)
             {
-                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta);
+                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta, number_of_exec);
             }
         }
         // Update S2 begin
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
             resetSimulationParameters();
             if (strcmp(mode, "CPU") == 0)
             {
-                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta);
+                runAllinCPU(options, method, deltat, numberThreads, delta_x, mode, theta, number_of_exec);
             }
             else if (strcmp(mode, "GPU") == 0)
             {
@@ -117,7 +118,7 @@ int main(int argc, char *argv[])
             }
             else if (strcmp(mode, "All-GPU") == 0)
             {
-                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta);
+                runAllinGPU(options, method, deltat, numberThreads, delta_x, mode, theta, number_of_exec);
             }
         }
     }

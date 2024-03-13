@@ -43,7 +43,7 @@ real lowerVWBound = 999.0, upperVWBound = 0.0;
 // ##                                        ##
 // ############################################
 #if defined(AFHN)
-void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode, real theta)
+void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode, real theta, int number_of_exec)
 {
     // Get options
     bool haveFibrosis = options[0];
@@ -126,8 +126,8 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
 
     // File names
     char framesFileName[MAX_STRING_SIZE], infosFileName[MAX_STRING_SIZE];
-    sprintf(framesFileName, "frames-%d-%.3lf-%.3lf.txt", numberThreads, deltat, deltat);
-    sprintf(infosFileName, "infos-%d-%.3lf-%.3lf.txt", numberThreads, deltat, deltat);
+    sprintf(framesFileName, "frames-%d-%.3lf.txt", numberThreads, deltat);
+    sprintf(infosFileName, "infos-%d-%.3lf-%.2lf.txt", numberThreads, deltat, theta);
     int saverate = ceil(M / 100.0);
     FILE *fpFrames, *fpInfos;
 
@@ -135,11 +135,13 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
     char pathToSaveData[MAX_STRING_SIZE];
     if (haveFibrosis)
     {
-        createDirectories(pathToSaveData, method, "AFHN-Fibro", mode);
+        // createDirectories(pathToSaveData, method, "AFHN-Fibro", mode);
+        createDirectoriesScript(pathToSaveData, method, "AFHN-Fibro", mode, numberThreads, number_of_exec);
     }
     else
     {
-        createDirectories(pathToSaveData, method, "AFHN", mode);
+        // createDirectories(pathToSaveData, method, "AFHN", mode);
+        createDirectoriesScript(pathToSaveData, method, "AFHN", mode, numberThreads, number_of_exec);
     }
 
     // File pointers
@@ -375,7 +377,7 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                         tildeRHS_W = reactionW(Vtilde[i][j], Wtilde[i][j]);
 
                         Rv[i][j] = deltat * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V) + Istim);
-                        W[i][j] = actualW + deltat * reactionW(Vtilde[i][j], Wtilde[i][j]);
+                        W[i][j] = actualW + deltat * tildeRHS_W;
                     }
                 }
                 
@@ -996,7 +998,7 @@ void runODEinCPUandPDEinGPU(bool options[], char *method, real deltat, int numbe
 
 }
 
-void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode, real theta)
+void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, real delta_x, char *mode, real theta, int number_of_exec)
 {
     // Get options
     bool haveFibrosis = options[0];
@@ -1095,9 +1097,15 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     // Create directories and files
     char pathToSaveData[MAX_STRING_SIZE];
     if (haveFibrosis)
-        createDirectories(pathToSaveData, method, "AFHN-Fibro", mode);
+    {
+        // createDirectories(pathToSaveData, method, "AFHN-Fibro", mode);
+        createDirectoriesScript(pathToSaveData, method, "AFHN-Fibro", mode, numberThreads, number_of_exec);
+    }
     else
-        createDirectories(pathToSaveData, method, "AFHN", mode);
+    {
+        // createDirectories(pathToSaveData, method, "AFHN", mode);
+        createDirectoriesScript(pathToSaveData, method, "AFHN", mode, numberThreads, number_of_exec);
+    }
     
     // File pointers
     char aux[MAX_STRING_SIZE];
@@ -1671,7 +1679,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             if (VWTag == false)
             {
                 // Write frames to file
-                startPartial = omp_get_wtime();
+                // startPartial = omp_get_wtime();
                 // if (timeStepCounter % saverate == 0 && saveDataToGif == true)
                 // {
                 //     //Copy memory from device to host of the matrices (2D arrays)
@@ -1697,8 +1705,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
                 //         fprintf(fpFrames, "\n");
                 //     }
                 // }
-                finishPartial = omp_get_wtime();
-                elapsedWriting += finishPartial - startPartial;
+                // finishPartial = omp_get_wtime();
+                // elapsedWriting += finishPartial - startPartial;
                 
 
                 // Check S1 velocity
