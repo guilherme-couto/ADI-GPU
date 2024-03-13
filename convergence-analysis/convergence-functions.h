@@ -36,6 +36,7 @@ __global__ void parallelRHSForcing_theta(real *d_V, real *d_Rv, unsigned int N, 
 
         // Update V reaction term
         d_Rv[index] = delta_t * (((1.0 - theta) * actualRHS_V) + (theta * tildeRHS_V));
+        // d_Rv[index] = delta_t * tildeRHS_V; // para testar
     }
 }
 #endif

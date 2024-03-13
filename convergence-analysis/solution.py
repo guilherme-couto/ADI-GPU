@@ -49,6 +49,7 @@ def read_files():
             error = np.linalg.norm(np.array(simulation_minus_solution)) / np.sqrt(number_of_points) # RMSE
             data[theta][dt][dx]['error'] = error
             print(f'Error for theta = {theta}, dx = {dx} and dt = {dt}: {error}') 
+            analysis_file.write(f'Error for theta = {theta}, dx = {dx} and dt = {dt}: {error}\n')
     return data
 
 # Function to plot the convergence analysis
@@ -97,7 +98,9 @@ dxs_2nd = ['0.000500', '0.001000', '0.002000', '0.002500', '0.003125', '0.004000
 alpha = 0.001
 dts = [f'{(float(dxs_2nd[i]) * alpha):.8f}' for i in range(len(dxs_2nd))]
 
+analysis_file = open('analysis.txt', 'w')
 run_all_simulations()
 data = read_files()
 plot_convergence(data, alpha)
 calculate_slope(data, alpha)
+analysis_file.close()
