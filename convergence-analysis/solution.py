@@ -80,13 +80,14 @@ def calculate_slope(data, alpha):
 
         slope_2nd = np.log(errors_2nd[-1] / errors_2nd[0]) / np.log(float(dts[-1]) / float(dts[0]))
         print(f'With theta {theta}: {slope_2nd} (mean: {np.mean(np.array(slopes))})')
+        analysis_file.write(f'With theta {theta}: {slope_2nd} (mean: {np.mean(np.array(slopes))})\n')
         
 
 # 1st order (dt = a*dx²)
 # 2nd order (dt = a*dx)
 alpha = 0.06
 thetas = ['0.50', '0.67', '1.00']
-values = np.linspace(0.000013*6.0, 0.0001*6.0, 10)
+values = np.linspace(0.000013*3.0, 0.0001*3.0, 10)
 dts = [f'{value:.8f}' for value in values]
 
 dxs_2nd = [f'{(value / alpha):.6f}' for value in values]
@@ -94,13 +95,14 @@ dxs_2nd = [f'{(value / alpha):.6f}' for value in values]
 dxs_2nd = ['0.001300','0.002267', '0.003233','0.004200','0.005167','0.006133','0.007100','0.008067','0.009033','0.010000']
 # dxs_2nd = ['0.000650','0.001133', '0.001617','0.002100','0.002583','0.003067','0.003550','0.004033','0.004517','0.005000']
 # dxs_2nd = ['0.002600', '0.004533', '0.006467', '0.008400', '0.010333', '0.012267', '0.014200', '0.016133', '0.018067', '0.020000']
-dxs_2nd = ['0.000500', '0.001000', '0.002000', '0.002500', '0.003125', '0.004000', '0.005000']
-alpha = 0.001
-dts = [f'{(float(dxs_2nd[i]) * alpha):.8f}' for i in range(len(dxs_2nd))]
+# dxs_2nd = ['0.000500', '0.001000', '0.002000', '0.002500', '0.003125', '0.004000', '0.005000']
+# alpha = 0.001
+# dts = [f'{(float(dxs_2nd[i]) * alpha):.8f}' for i in range(len(dxs_2nd))]
 
 analysis_file = open('analysis.txt', 'w')
 run_all_simulations()
 data = read_files()
 plot_convergence(data, alpha)
+analysis_file.write('\n\n')
 calculate_slope(data, alpha)
 analysis_file.close()

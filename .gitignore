@@ -1,6 +1,8 @@
 last*.txt
 infos*.txt
 frames*.txt
+execution.py
+*.txt
 
 # Prerequisites
 *.d
