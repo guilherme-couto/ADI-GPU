@@ -3,6 +3,8 @@ infos*.txt
 frames*.txt
 execution.py
 *.txt
+*.gif
+*.png
 
 # Prerequisites
 *.d
