@@ -252,6 +252,7 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                 // Finish measuring 1st Thomas algorithm execution time and start measuring 2nd Thomas algorithm execution time
                 #pragma omp master
                 {
+                    finishPartial = omp_get_wtime();
                     elapsed1stThomas += finishPartial - startPartial;
                     startPartial = omp_get_wtime();
                 }
@@ -277,7 +278,6 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                 {                  
                     finishPartial = omp_get_wtime();
                     elapsed2ndThomas += finishPartial - startPartial;
-                    elapsedPDE += elapsed1stThomas + elapsed2ndThomas;
                 }
 
                 // Save frames
@@ -323,6 +323,9 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
             }
         }
 
+        // PDE execution time
+        elapsedPDE = elapsed1stThomas + elapsed2ndThomas;
+        
         // Finish measuring total execution time
         finishTotal = omp_get_wtime();
         elapsedTotal = finishTotal - startTotal;
@@ -429,6 +432,7 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                 // Finish measuring 1st Thomas algorithm execution time and start measuring 2nd Thomas algorithm execution time
                 #pragma omp master
                 {
+                    finishPartial = omp_get_wtime();
                     elapsed1stThomas += finishPartial - startPartial;
                     startPartial = omp_get_wtime();
                 }
@@ -466,7 +470,6 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                 {                  
                     finishPartial = omp_get_wtime();
                     elapsed2ndThomas += finishPartial - startPartial;
-                    elapsedPDE += elapsed1stThomas + elapsed2ndThomas;
                 }
 
                 // Save frames
@@ -511,6 +514,9 @@ void runAllinCPU(bool options[], char *method, real deltat, int numberThreads, r
                 #pragma omp barrier
             }
         }
+
+        // PDE execution time
+        elapsedPDE = elapsed1stThomas + elapsed2ndThomas;
 
         // Finish measuring total execution time
         finishTotal = omp_get_wtime();

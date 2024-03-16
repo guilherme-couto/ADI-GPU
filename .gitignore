@@ -5,6 +5,7 @@ execution.py
 *.txt
 *.gif
 *.png
+*.csv
 
 # Prerequisites
 *.d
