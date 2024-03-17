@@ -4,12 +4,17 @@ from execution import *
 os.system(f'nvcc -Xcompiler -fopenmp -lpthread -lcusparse main.cu -o main -O3 -arch=sm_89 -w')
 
 # Check arguments
-for dx in dxs:
-    for cell_model in cell_models:
-        for num_threads in numbers_threads:
-            for method in methods:
-                for dt in dts:
-                    for mode in modes:
+
+for cell_model in cell_models:
+    for mode in modes:
+        if mode == 'All-GPU':
+            numbers_threads = gpu_threads
+        else:
+            numbers_threads = cpu_threads
+        for method in methods:
+            for dx in dxs:
+                for num_threads in numbers_threads:
+                    for dt in dts:
                         if method == 'theta-ADI':
                             for theta in thetas:
                                 for exec_number in range(number_of_executions):

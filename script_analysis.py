@@ -4,13 +4,16 @@ from execution import *
 
 for cell_model in cell_models:
     for mode in modes:
+        if mode == 'All-GPU':
+            numbers_threads = gpu_threads
+        else:
+            numbers_threads = cpu_threads
         output_file = open(f'analysis-{mode}.csv', 'w')
         
         for method in methods:
             for dx in dxs:
                 for number_of_threads in numbers_threads:
                     for theta in thetas:
-                        output_file.write('\n')
                         output_file.write('dx,number_of_threads,theta\n')
                         output_file.write(f'{dx},{number_of_threads},{theta}\n')
                         output_file.write('exec_number,')
@@ -109,6 +112,7 @@ for cell_model in cell_models:
                                 output_file.write(f'{(np.mean(s1_velocities)):.6f},{(np.mean(odes)):.6f},{(np.mean(pdes)):.6f},{(np.mean(totals)):.6f},{(np.mean(thomas_1s)):.6f},{(np.mean(thomas_2s)):.6f},{(np.mean(transposes)):.6f},{(np.mean(rhs_1s)):.6f},{(np.mean(rhs_2s)):.6f},{(np.mean(memory_copys)):.6f}\n') 
                             elif mode == 'CPU':
                                 output_file.write(f'{(np.mean(s1_velocities)):.6f},{(np.mean(odes)):.6f},{(np.mean(pdes)):.6f},{(np.mean(totals)):.6f},{(np.mean(thomas_1s)):.6f},{(np.mean(thomas_2s)):.6f}\n')
+                            output_file.write('\n')
 
         output_file.close()
         print(f'File analysis-{mode}.csv created')
@@ -119,6 +123,10 @@ print('Start calculating speedups')
 output_file = open('speedups.csv', 'w')
 
 for mode in modes:
+    if mode == 'All-GPU':
+        numbers_threads = gpu_threads
+    else:
+        numbers_threads = cpu_threads
     for dx in dxs:
         for theta in thetas:
             output_file.write('\n')
@@ -138,7 +146,7 @@ for mode in modes:
                     for i in range(len(lines)):
                         line = lines[i]
                         if f'{dx},{number_of_threads},{theta}' in line:
-                            for j in range(i+1, i+8):
+                            for j in range(i+1, i+3+number_of_executions):
                                 line = lines[j]
                                 if 'Average' in line:
                                     values = line.split(',')
