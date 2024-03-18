@@ -1,26 +1,9 @@
 #ifndef CUDA_FUNCTIONS_H
 #define CUDA_FUNCTIONS_H
 
-#include "includes.h"
+#include "cuda_constants.h"
+#include "cuda_devicefuncs.h"
 
-__constant__ real d_stimStrength = 100.0;
-
-__constant__ real d_stim1Begin = 0.0;    // Stimulation start time -> ms
-__constant__ real d_stim1Duration = 2.0; // Stimulation duration -> ms
-
-__constant__ real d_stim2Begin = 120.0;  // Stimulation start time -> ms
-__constant__ real d_stim2Duration = 2.0; // Stimulation duration -> ms
-
-__constant__ real d_G = 1.5;        // omega^-1 * cm^-2
-__constant__ real d_eta1 = 4.4;     // omega^-1 * cm^-1
-__constant__ real d_eta2 = 0.012;   // dimensionless
-__constant__ real d_eta3 = 1.0;     // dimensionless
-__constant__ real d_vth = 13.0;     // mV
-__constant__ real d_vp = 100.0;     // mV
-__constant__ real d_sigma = 1.2e-3; // omega^-1 * cm^-1
-
-__constant__ real d_chi = 1.0e3; // cm^-1
-__constant__ real d_Cm = 1.0e-3; // mF * cm^-2
 
 // From GLOSTER, Andrew et al. Efficient Interleaved Batch Matrix Solvers for CUDA. arXiv preprint arXiv:1909.04539, 2019.
 __global__ void parallelThomas(real *d, unsigned int N, real *la, real *lb, real *lc)
@@ -57,82 +40,79 @@ __global__ void parallelThomas(real *d, unsigned int N, real *la, real *lb, real
     }
 }
 
-__device__ real d_stimulus(int i, int j, int timeStep, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
+__global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
 {
-    // Stimulus 1
-    if (timeStep >= d_stim1Begin && timeStep <= d_stim1Begin + d_stim1Duration && j <= discS1xLimit)
+    // unsigned int blk_y = blockIdx.x;
+    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
+
+    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
+    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
+    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
+    // if (ix < nx && iy < ny)
+    if (i < nx * ny)
     {
-        return d_stimStrength;
+        unsigned int ix = i / nx;
+        unsigned int iy = i % ny;
+        out[iy * nx + ix] = in[ix * ny + iy];
     }
-    // Stimulus 2
-    else if (timeStep >= d_stim2Begin && timeStep <= d_stim2Begin + d_stim2Duration && j >= discS2xMin && j <= discS2xMax && i >= discS2yMin && i <= discS2yMax)
-    {
-        return d_stimStrength;
-    }
-    return 0.0;
 }
 
-__device__ real d_iDiffusion(unsigned int i, unsigned int j, unsigned int index, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__global__ void prepareRighthandSide_iDiffusion(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
-    // unsigned int index = i * N + j;
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
-    real result = 0.0;
-    if (i == 0)
+    if (index < N * N)
     {
-        result = -2.0 * V[index] + 2.0 * V[index + N];
+        int i = index / N;
+        int j = index % N;
+        d_rightside[index] = d_V[index] + (0.5 * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
-    else if (i == N - 1)
-    {
-        result = 2.0 * V[index - N] - 2.0 * V[index];
-    }
-    else
-    {
-        result = V[index - N] - 2.0 * V[index] + V[index + N];
-    }
-
-    if ((i >= discFibyMin && i <= discFibyMax) && (j >= discFibxMin && j <= discFibxMax))
-    {
-        result *= fibrosisFactor;
-    }
-    return result;
 }
 
-__device__ real d_jDiffusion(unsigned int i, unsigned int j, unsigned int index, unsigned int N, real *V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__global__ void prepareRighthandSide_jDiffusion(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
-    // unsigned int index = i * N + j;
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
-    real result = 0.0;
-    if (j == 0)
+    if (index < N * N)
     {
-        result = -2.0 * V[index] + 2.0 * V[index + 1];
+        int i = index / N;
+        int j = index % N;
+        int transposedIndex = j * N + i;
+        d_rightside[transposedIndex] = d_V[index] + (0.5 * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
-    else if (j == N - 1)
-    {
-        result = 2.0 * V[index - 1] - 2.0 * V[index];
-    }
-    else
-    {
-        result = V[index - 1] - 2.0 * V[index] + V[index + 1];
-    }
-
-    if ((i >= discFibyMin && i <= discFibyMax) && (j >= discFibxMin && j <= discFibxMax))
-    {
-        result *= fibrosisFactor;
-    }
-    return result;
 }
 
+__global__ void prepareRighthandSide_iDiffusion_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N * N)
+    {
+        int i = index / N;
+        int j = index % N;
+        d_rightside[index] = d_V[index] + ((1-theta) * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
+
+__global__ void prepareRighthandSide_jDiffusion_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N * N)
+    {
+        int i = index / N;
+        int j = index % N;
+        int transposedIndex = j * N + i;
+        d_rightside[transposedIndex] = d_V[index] + ((1-theta) * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
+
+//############################################
+//##                                        ##
+//##     Adapted FitzHugh-Nagumo (AFHN)     ##
+//##                                        ##
+//############################################
 #if defined(AFHN)
-__device__ real d_reactionV(real v, real w)
-{
-    return (1.0 / (d_Cm * d_chi)) * ((-d_G * v * (1.0 - (v / d_vth)) * (1.0 - (v / d_vp))) + (-d_eta1 * v * w));
-}
-
-__device__ real d_reactionW(real v, real w)
-{
-    return d_eta2 * ((v / d_vp) - (d_eta3 * w));
-}
-
 __global__ void parallelODE(real *d_V, real *d_W, real *d_rightside, unsigned int N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
 {
     // Naive
@@ -179,7 +159,7 @@ __global__ void parallelODE_SSI(real *d_V, real *d_W, real *d_Rv, unsigned int N
 
         real stim = d_stimulus(i, j, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
 
-        // Update V with diffusion (RK2) and W without diffusion
+        // Update V with diffusion and W without diffusion
         real Vtilde, Wtilde;
         real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
 
@@ -251,7 +231,7 @@ __global__ void parallelODE_MOSI(real *d_V, real *d_W, real *d_Rv, unsigned int 
 
         real stim = d_stimulus(i, j, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
 
-        // Update V with diffusion (RK2) and W without diffusion
+        // Update V with diffusion and W without diffusion
         real Vtilde, Wtilde;
         real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
 
@@ -269,76 +249,249 @@ __global__ void parallelODE_MOSI(real *d_V, real *d_W, real *d_Rv, unsigned int 
 }
 #endif // AFHN
 
-__global__ void transposeDiagonalCol(real *in, real *out, unsigned int nx, unsigned int ny)
-{
-    // unsigned int blk_y = blockIdx.x;
-    // unsigned int blk_x = (blockIdx.x + blockIdx.y) % gridDim.x;
-
-    // unsigned int ix = blockDim.x * blk_x + threadIdx.x;
-    // unsigned int iy = blockDim.y * blk_y + threadIdx.y;
-    unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
-    // if (ix < nx && iy < ny)
-    if (i < nx * ny)
-    {
-        unsigned int ix = i / nx;
-        unsigned int iy = i % ny;
-        out[iy * nx + ix] = in[ix * ny + iy];
-    }
-}
-
-__global__ void prepareRighthandSide_iDiffusion(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+//###########################################
+//##                                       ##
+//##     ten Tusscher 2006 model (TT2)     ##
+//##                                       ##
+//###########################################
+#if defined(TT2)
+__global__ void parallelODE_MOSI(real *V, real *X_r1, real *X_r2, real *X_s, real *m, real *h, real *j, real *d, real *f, real *f2, real *fCass, real *s, real *r, real *Ca_i, real *Ca_SR, real *Ca_SS, real *R_prime, real *Na_i, real *K_i, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (index < N * N)
     {
-        int i = index / N;
-        int j = index % N;
-        d_rightside[index] = d_V[index] + (0.5 * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        unsigned int i = index / N;
+        unsigned int jj = index % N;
+
+        real actualV = V[index];
+        real actualX_r1 = X_r1[index];
+        real actualX_r2 = X_r2[index];
+        real actualX_s = X_s[index];
+        real actualm = m[index];
+        real actualh = h[index];
+        real actualj = j[index];
+        real actuald = d[index];
+        real actualf = f[index];
+        real actualf2 = f2[index];
+        real actualfCass = fCass[index];
+        real actuals = s[index];
+        real actualr = r[index];
+        real actualCa_i = Ca_i[index];
+        real actualCa_SR = Ca_SR[index];
+        real actualCa_SS = Ca_SS[index];
+        real actualR_prime = R_prime[index];
+        real actualNa_i = Na_i[index];
+        real actualK_i = K_i[index];
+
+        real stim = d_stimulus(i, jj, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+
+        // Itotal
+        real Itotal = d_Itotal(stim, actualV, actualm, actualh, actualj, actualNa_i, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actuald, actualf, actualf2, actualfCass, actualCa_SS, actualCa_i);
+
+        // Update V with diffusion and W without diffusion
+        real Vtilde, X_r1tilde, X_r2tilde, X_stilde, mtilde, htilde, jtilde, dtilde, ftilde, f2tilde, fCasstilde, stilde, rtilde, Ca_itilde, Ca_SRtilde, Ca_SStilde, R_primetilde, Na_itilde, K_itilde;
+
+        // Diffusion for Vtilde
+        real diffusion = d_iDiffusion(i, jj, index, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, jj, index, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+        Vtilde = actualV + (0.5 * deltat * (-Itotal)) + (0.5 * phi * diffusion);
+
+        // Reactions and predictions for state variables
+        X_r1tilde = d_updateXr1(actualX_r1, actualV, 0.5*deltat);
+        X_r2tilde = d_updateXr2(actualX_r2, actualV, 0.5*deltat);
+        X_stilde = d_updateXs(actualX_s, actualV, 0.5*deltat);
+        mtilde = d_updatem(actualm, actualV, 0.5*deltat);
+        htilde = d_updateh(actualh, actualV, 0.5*deltat);
+        jtilde = d_updatej(actualj, actualV, 0.5*deltat);
+        dtilde = d_updated(actuald, actualV, 0.5*deltat);
+        ftilde = d_updatef(actualf, actualV, 0.5*deltat);
+        f2tilde = d_updatef2(actualf2, actualV, 0.5*deltat);
+        fCasstilde = d_updatefCass(actualfCass, actualV, 0.5*deltat);
+        stilde = d_updates(actuals, actualV, 0.5*deltat);
+        rtilde = d_updater(actualr, actualV, 0.5*deltat);
+
+        R_primetilde = actualR_prime + 0.5 * deltat * d_dRprimedt(actualCa_SS, actualR_prime);
+        Ca_itilde = actualCa_i + 0.5 * deltat * d_dCaidt(actualCa_i, actualCa_SR, actualCa_SS, actualV, actualNa_i);
+        Ca_SRtilde = actualCa_SR + 0.5 * deltat * d_dCaSRdt(actualCa_SR, actualCa_i, actualCa_SS, actualR_prime);
+        Ca_SStilde = actualCa_SS + 0.5 * deltat * d_dCaSSdt(actualCa_SS, actualV, actuald, actualf, actualf2, actualfCass, actualCa_SR, actualR_prime, actualCa_i);
+        Na_itilde = actualNa_i + 0.5 * deltat * d_dNaidt(actualV, actualm, actualh, actualj, actualNa_i, actualCa_i);
+        K_itilde = actualK_i + 0.5 * deltat * d_dKidt(stim, actualV, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actualNa_i);
+
+        // Update V reaction term
+        real Itotaltilde = d_Itotal(stim, Vtilde, mtilde, htilde, jtilde, Na_itilde, K_itilde, rtilde, stilde, X_r1tilde, X_r2tilde, X_stilde, dtilde, ftilde, f2tilde, fCasstilde, Ca_SStilde, Ca_itilde);
+        d_Rv[index] = deltat * (-Itotaltilde);
+
+        // Update state variables
+        X_r1[index] = d_updateXr1(actualX_r1, actualV, deltat);
+        X_r2[index] = d_updateXr2(actualX_r2, actualV, deltat);
+        X_s[index] = d_updateXs(actualX_s, actualV, deltat);
+        m[index] = d_updatem(actualm, actualV, deltat);
+        h[index] = d_updateh(actualh, actualV, deltat);
+        j[index] = d_updatej(actualj, actualV, deltat);
+        d[index] = d_updated(actuald, actualV, deltat);
+        f[index] = d_updatef(actualf, actualV, deltat);
+        f2[index] = d_updatef2(actualf2, actualV, deltat);
+        fCass[index] = d_updatefCass(actualfCass, actualV, deltat);
+        s[index] = d_updates(actuals, actualV, deltat);
+        r[index] = d_updater(actualr, actualV, deltat);
+
+        R_prime[index] = actualR_prime + deltat * d_dRprimedt(actualCa_SS, actualR_prime);
+        Ca_i[index] = actualCa_i + deltat * d_dCaidt(actualCa_i, actualCa_SR, actualCa_SS, actualV, actualNa_i);
+        Ca_SR[index] = actualCa_SR + deltat * d_dCaSRdt(actualCa_SR, actualCa_i, actualCa_SS, actualR_prime);
+        Ca_SS[index] = actualCa_SS + deltat * d_dCaSSdt(actualCa_SS, actualV, actuald, actualf, actualf2, actualfCass, actualCa_SR, actualR_prime, actualCa_i);
+        Na_i[index] = actualNa_i + deltat * d_dNaidt(actualV, actualm, actualh, actualj, actualNa_i, actualCa_i);
+        K_i[index] = actualK_i + deltat * d_dKidt(stim, actualV, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actualNa_i);
     }
 }
 
-__global__ void prepareRighthandSide_jDiffusion(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__global__ void parallelODE_MOSI_2(real *V, real *X_r1, real *X_r2, real *X_s, real *m, real *h, real *j, real *d, real *f, real *f2, real *fCass, real *s, real *r, real *Ca_i, real *Ca_SR, real *Ca_SS, real *R_prime, real *Na_i, real *K_i, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (index < N * N)
     {
-        int i = index / N;
-        int j = index % N;
-        int transposedIndex = j * N + i;
-        d_rightside[transposedIndex] = d_V[index] + (0.5 * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        unsigned int i = index / N;
+        unsigned int jj = index % N;
+
+        real actualV = V[index];
+        real actualX_r1 = X_r1[index];
+        real actualX_r2 = X_r2[index];
+        real actualX_s = X_s[index];
+        real actualm = m[index];
+        real actualh = h[index];
+        real actualj = j[index];
+        real actuald = d[index];
+        real actualf = f[index];
+        real actualf2 = f2[index];
+        real actualfCass = fCass[index];
+        real actuals = s[index];
+        real actualr = r[index];
+        real actualCa_i = Ca_i[index];
+        real actualCa_SR = Ca_SR[index];
+        real actualCa_SS = Ca_SS[index];
+        real actualR_prime = R_prime[index];
+        real actualNa_i = Na_i[index];
+        real actualK_i = K_i[index];
+
+        real stim = d_stimulus(i, jj, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+
+        // Itotal
+        real Itotal = d_Itotal(stim, actualV, actualm, actualh, actualj, actualNa_i, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actuald, actualf, actualf2, actualfCass, actualCa_SS, actualCa_i);
+
+        // Update V with diffusion and W without diffusion
+        real Vtilde, X_r1tilde, X_r2tilde, X_stilde, mtilde, htilde, jtilde, dtilde, ftilde, f2tilde, fCasstilde, stilde, rtilde, Ca_itilde, Ca_SRtilde, Ca_SStilde, R_primetilde, Na_itilde, K_itilde;
+
+        // Diffusion for Vtilde
+        real diffusion = d_iDiffusion(i, jj, index, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, jj, index, N, V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+        Vtilde = actualV + (0.5 * deltat * (-Itotal)) + (0.5 * phi * diffusion);
+
+        // Reactions and predictions for state variables
+        X_r1tilde = d_updateXr1(actualX_r1, actualV, 0.5*deltat);
+        X_r2tilde = d_updateXr2(actualX_r2, actualV, 0.5*deltat);
+        X_stilde = d_updateXs(actualX_s, actualV, 0.5*deltat);
+        mtilde = d_updatem(actualm, actualV, 0.5*deltat);
+        htilde = d_updateh(actualh, actualV, 0.5*deltat);
+        jtilde = d_updatej(actualj, actualV, 0.5*deltat);
+        dtilde = d_updated(actuald, actualV, 0.5*deltat);
+        ftilde = d_updatef(actualf, actualV, 0.5*deltat);
+        f2tilde = d_updatef2(actualf2, actualV, 0.5*deltat);
+        fCasstilde = d_updatefCass(actualfCass, actualV, 0.5*deltat);
+        stilde = d_updates(actuals, actualV, 0.5*deltat);
+        rtilde = d_updater(actualr, actualV, 0.5*deltat);
+
+        R_primetilde = actualR_prime + 0.5 * deltat * d_dRprimedt(actualCa_SS, actualR_prime);
+        Ca_itilde = actualCa_i + 0.5 * deltat * d_dCaidt(actualCa_i, actualCa_SR, actualCa_SS, actualV, actualNa_i);
+        Ca_SRtilde = actualCa_SR + 0.5 * deltat * d_dCaSRdt(actualCa_SR, actualCa_i, actualCa_SS, actualR_prime);
+        Ca_SStilde = actualCa_SS + 0.5 * deltat * d_dCaSSdt(actualCa_SS, actualV, actuald, actualf, actualf2, actualfCass, actualCa_SR, actualR_prime, actualCa_i);
+        Na_itilde = actualNa_i + 0.5 * deltat * d_dNaidt(actualV, actualm, actualh, actualj, actualNa_i, actualCa_i);
+        K_itilde = actualK_i + 0.5 * deltat * d_dKidt(stim, actualV, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actualNa_i);
+
+        // Update V reaction term
+        real Itotaltilde = d_Itotal(stim, Vtilde, mtilde, htilde, jtilde, Na_itilde, K_itilde, rtilde, stilde, X_r1tilde, X_r2tilde, X_stilde, dtilde, ftilde, f2tilde, fCasstilde, Ca_SStilde, Ca_itilde);
+        d_Rv[index] = deltat * (-Itotaltilde);
+
+        // Update state variables
+        X_r1[index] = d_updateXr1(actualX_r1, actualV, deltat);
+        X_r2[index] = d_updateXr2(actualX_r2, actualV, deltat);
+        X_s[index] = d_updateXs(actualX_s, actualV, deltat);
+        m[index] = d_updatem(actualm, actualV, deltat);
+        h[index] = d_updateh(actualh, actualV, deltat);
+        j[index] = d_updatej(actualj, actualV, deltat);
+        d[index] = d_updated(actuald, actualV, deltat);
+        f[index] = d_updatef(actualf, actualV, deltat);
+        f2[index] = d_updatef2(actualf2, actualV, deltat);
+        fCass[index] = d_updatefCass(actualfCass, actualV, deltat);
+        s[index] = d_updates(actuals, actualV, deltat);
+        r[index] = d_updater(actualr, actualV, deltat);
+
+        R_prime[index] = actualR_prime + deltat * d_dRprimedt(actualCa_SS, actualR_prime);
+        Ca_i[index] = actualCa_i + deltat * d_dCaidt(actualCa_i, actualCa_SR, actualCa_SS, actualV, actualNa_i);
+        Ca_SR[index] = actualCa_SR + deltat * d_dCaSRdt(actualCa_SR, actualCa_i, actualCa_SS, actualR_prime);
+        Ca_SS[index] = actualCa_SS + deltat * d_dCaSSdt(actualCa_SS, actualV, actuald, actualf, actualf2, actualfCass, actualCa_SR, actualR_prime, actualCa_i);
+        Na_i[index] = actualNa_i + deltat * d_dNaidt(actualV, actualm, actualh, actualj, actualNa_i, actualCa_i);
+        K_i[index] = actualK_i + deltat * d_dKidt(stim, actualV, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actualNa_i);
     }
 }
 
-__global__ void prepareRighthandSide_iDiffusion_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__global__ void parallelODE_MOSI_USV(real *V, real *X_r1, real *X_r2, real *X_s, real *m, real *h, real *j, real *d, real *f, real *f2, real *fCass, real *s, real *r, real *Ca_i, real *Ca_SR, real *Ca_SS, real *R_prime, real *Na_i, real *K_i, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (index < N * N)
     {
-        int i = index / N;
-        int j = index % N;
-        d_rightside[index] = d_V[index] + ((1-theta) * phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+        unsigned int i = index / N;
+        unsigned int jj = index % N;
+
+        real actualV = V[index];
+        real actualX_r1 = X_r1[index];
+        real actualX_r2 = X_r2[index];
+        real actualX_s = X_s[index];
+        real actualm = m[index];
+        real actualh = h[index];
+        real actualj = j[index];
+        real actuald = d[index];
+        real actualf = f[index];
+        real actualf2 = f2[index];
+        real actualfCass = fCass[index];
+        real actuals = s[index];
+        real actualr = r[index];
+        real actualCa_i = Ca_i[index];
+        real actualCa_SR = Ca_SR[index];
+        real actualCa_SS = Ca_SS[index];
+        real actualR_prime = R_prime[index];
+        real actualNa_i = Na_i[index];
+        real actualK_i = K_i[index];
+
+        real stim = d_stimulus(i, jj, timeStep, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax);
+
+        // Update state variables
+        X_r1[index] = d_updateXr1(actualX_r1, actualV, deltat);
+        X_r2[index] = d_updateXr2(actualX_r2, actualV, deltat);
+        X_s[index] = d_updateXs(actualX_s, actualV, deltat);
+        m[index] = d_updatem(actualm, actualV, deltat);
+        h[index] = d_updateh(actualh, actualV, deltat);
+        j[index] = d_updatej(actualj, actualV, deltat);
+        d[index] = d_updated(actuald, actualV, deltat);
+        f[index] = d_updatef(actualf, actualV, deltat);
+        f2[index] = d_updatef2(actualf2, actualV, deltat);
+        fCass[index] = d_updatefCass(actualfCass, actualV, deltat);
+        s[index] = d_updates(actuals, actualV, deltat);
+        r[index] = d_updater(actualr, actualV, deltat);
+
+        R_prime[index] = actualR_prime + deltat * d_dRprimedt(actualCa_SS, actualR_prime);
+        Ca_i[index] = actualCa_i + deltat * d_dCaidt(actualCa_i, actualCa_SR, actualCa_SS, actualV, actualNa_i);
+        Ca_SR[index] = actualCa_SR + deltat * d_dCaSRdt(actualCa_SR, actualCa_i, actualCa_SS, actualR_prime);
+        Ca_SS[index] = actualCa_SS + deltat * d_dCaSSdt(actualCa_SS, actualV, actuald, actualf, actualf2, actualfCass, actualCa_SR, actualR_prime, actualCa_i);
+        Na_i[index] = actualNa_i + deltat * d_dNaidt(actualV, actualm, actualh, actualj, actualNa_i, actualCa_i);
+        K_i[index] = actualK_i + deltat * d_dKidt(stim, actualV, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actualNa_i);
     }
 }
-
-__global__ void prepareRighthandSide_jDiffusion_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
-{
-    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
-
-    if (index < N * N)
-    {
-        int i = index / N;
-        int j = index % N;
-        int transposedIndex = j * N + i;
-        d_rightside[transposedIndex] = d_V[index] + ((1-theta) * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
-    }
-}
+#endif // TT2
 
 //=======================================
 //      3D functions
 //=======================================
+#if defined(AFHN)
 __global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned int N, real timeStep, real deltat, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax)
 {
     // Naive
@@ -369,6 +522,7 @@ __global__ void parallelODE3D(real *d_V, real *d_W, real *d_rightside, unsigned 
         // }
     }
 }
+#endif // AFHN
 
 __global__ void parallelThomas3D(real *d, unsigned int N, real *la, real *lb, real *lc)
 {

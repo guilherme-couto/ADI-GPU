@@ -549,6 +549,37 @@ void initializeVariables(int N, real **V, real **X_r1, real **X_r2, real **X_s, 
         }
     }
 }
+
+void initializeVariablesGPU(int N, real *V, real *X_r1, real *X_r2, real *X_s, real *m, real *h, real *j, real *d, real *f, real *f2, real *fCass, real *s, real *r, real *Ca_i, real *Ca_SR, real *Ca_SS, real *R_prime, real *Na_i, real *K_i)
+{
+    int index;
+    for (int i = 0; i < N; i++)
+    {
+        for (int k = 0; k < N; k++)
+        {
+            index = i * N + k;
+            V[index] = V_init;
+            X_r1[index] = X_r1_init;
+            X_r2[index] = X_r2_init;
+            X_s[index] = X_s_init;
+            m[index] = m_init;
+            h[index] = h_init;
+            j[index] = j_init;
+            d[index] = d_init;
+            f[index] = f_init;
+            f2[index] = f2_init;
+            fCass[index] = fCass_init;
+            s[index] = s_init;
+            r[index] = r_init;
+            Ca_i[index] = Ca_i_init;
+            Ca_SR[index] = Ca_SR_init;
+            Ca_SS[index] = Ca_SS_init;
+            R_prime[index] = R_prime_init;
+            Na_i[index] = Na_i_init;
+            K_i[index] = K_i_init;
+        }
+    }
+}
 #endif // EPI || M || ENDO
 #endif // TT2
 

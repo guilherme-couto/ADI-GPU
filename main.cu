@@ -125,10 +125,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-// bool haveFibrosis = options[0];
-// bool measureTotalTime = options[1];
-// bool saveDataToError = options[2];
-// bool saveDataToGif = options[3];
-// bool measureTimeParts = options[4];
-// bool measureS1Velocity = options[5];

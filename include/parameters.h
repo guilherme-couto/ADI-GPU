@@ -13,7 +13,7 @@ real L = 2;             // Length of each side (cm)
 real deltax = 0.002;    // Spatial step (x) -> cm
 real deltay = 0.002;    // Spatial step (y) -> cm
 real deltaz = 0.002;    // Spatial step (z) -> cm
-real T = 220.0;         // Simulation time -> ms
+real Time = 220.0;         // Simulation time -> ms
 
 
 
@@ -100,7 +100,7 @@ Model parameters
 ----------------*/
 real chi = 1400.0;        // Surface area-to-volume ratio -> cm^-1
 real Cm = 0.185;          // Cell capacitance per unit surface area -> uF/ (???)^2 (ten Tusscher)
-
+real sigma = 1.171;               // Diffusion coefficient -> cm²/s
 
 /*----------------
 Parameters
