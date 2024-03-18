@@ -2288,8 +2288,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
     // Variables
     int i, jj;
-    real *Vtilde, *Rv, *rightside, *solution;
-    Vtilde = (real *)malloc(N * N * sizeof(real));
+    real *Rv, *rightside, *solution;
     Rv = (real *)malloc(N * N * sizeof(real));
     rightside = (real *)malloc(N * N * sizeof(real));
     solution = (real *)malloc(N * N * sizeof(real));
@@ -2852,7 +2851,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
     // Free memory from host
     free(V);
-    free(Vtilde);
     free(Rv);
     free(rightside);
     free(solution);
@@ -2868,6 +2866,24 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     
     // Free memory from device
     cudaFree(d_V);
+    cudaFree(d_X_r1);
+    cudaFree(d_X_r2);
+    cudaFree(d_X_s);
+    cudaFree(d_m);
+    cudaFree(d_h);
+    cudaFree(d_j);
+    cudaFree(d_d);
+    cudaFree(d_f);
+    cudaFree(d_f2);
+    cudaFree(d_fCass);
+    cudaFree(d_s);
+    cudaFree(d_r);
+    cudaFree(d_Ca_i);
+    cudaFree(d_Ca_SR);
+    cudaFree(d_Ca_SS);
+    cudaFree(d_R_prime);
+    cudaFree(d_Na_i);
+    cudaFree(d_K_i);
     cudaFree(d_Rv);
     cudaFree(d_rightside);
     cudaFree(d_solution);
