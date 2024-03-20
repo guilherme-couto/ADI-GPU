@@ -1,12 +1,22 @@
 #ifndef CUDA_CONSTANTS_H
 #define CUDA_CONSTANTS_H
 
-__constant__ real d_stimStrength = 100.0;
+#if defined(AFHN)
+__constant__ real d_stimStrength = 100;
+#endif // AFHN
+#if defined(TT2)
+__constant__ real d_stimStrength = -38.0;
+#endif // TT2
 
 __constant__ real d_stim1Begin = 0.0;    // Stimulation start time -> ms
 __constant__ real d_stim1Duration = 2.0; // Stimulation duration -> ms
 
+#if defined(AFHN)
 __constant__ real d_stim2Begin = 120.0;  // Stimulation start time -> ms
+#endif // AFHN
+#if defined(TT2)
+__constant__ real d_stim2Begin = 310.0;  // Stimulation start time -> ms
+#endif // TT2
 __constant__ real d_stim2Duration = 2.0; // Stimulation duration -> ms
 
 //############################################

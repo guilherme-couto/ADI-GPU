@@ -13,8 +13,12 @@ real L = 2;             // Length of each side (cm)
 real deltax = 0.002;    // Spatial step (x) -> cm
 real deltay = 0.002;    // Spatial step (y) -> cm
 real deltaz = 0.002;    // Spatial step (z) -> cm
-real Time = 220.0;         // Simulation time -> ms
-
+#if defined(AFHN)
+real T = 300;
+#endif // AFHN
+#if defined(TT2)
+real Time = 600.0;         // Simulation time -> ms
+#endif // TT2
 
 
 //############################################
@@ -22,14 +26,24 @@ real Time = 220.0;         // Simulation time -> ms
 //##         Stimulation parameters         ##
 //##                                        ##
 //############################################
-real stimStrength = 100.0;         
+#if defined(AFHN)
+real stimStrength = 100.0;
+#endif // AFHN
+#if defined(TT2)
+real stimStrength = -38.0;         
+#endif //TT2
 
 real stim1Begin = 0.0;            // Stimulation start time -> ms
 real stim1Duration = 2.0;         // Stimulation duration -> ms
 real stim1xLimit = 0.2;           // Stimulation x limit -> cm
 real stim1yLimit = 2.0;           // Stimulation y limit -> cm ( = L)
 
-real stim2Begin = 120.0;          // Stimulation start time -> ms
+#if defined(AFHN)
+real stim2Begin = 120.0;
+#endif // AFHN
+#if defined(TT2)
+real stim2Begin = 310.0;          // Stimulation start time -> ms
+#endif //TT2
 real stim2Duration = 2.0;         // Stimulation duration -> ms
 real stim2xMax = 1.0;             // Stimulation x max -> cm
 real stim2yMax = 1.0;             // Stimulation y max -> cm

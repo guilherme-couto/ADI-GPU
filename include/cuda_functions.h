@@ -409,31 +409,10 @@ __global__ void parallelODE_MOSI_2(real *V, real *X_r1, real *X_r2, real *X_s, r
         // Update V reaction term
         real Itotaltilde = d_Itotal(stim, Vtilde, mtilde, htilde, jtilde, Na_itilde, K_itilde, rtilde, stilde, X_r1tilde, X_r2tilde, X_stilde, dtilde, ftilde, f2tilde, fCasstilde, Ca_SStilde, Ca_itilde);
         d_Rv[index] = deltat * (-Itotaltilde);
-
-        // Update state variables
-        X_r1[index] = d_updateXr1(actualX_r1, actualV, deltat);
-        X_r2[index] = d_updateXr2(actualX_r2, actualV, deltat);
-        X_s[index] = d_updateXs(actualX_s, actualV, deltat);
-        m[index] = d_updatem(actualm, actualV, deltat);
-        h[index] = d_updateh(actualh, actualV, deltat);
-        j[index] = d_updatej(actualj, actualV, deltat);
-        d[index] = d_updated(actuald, actualV, deltat);
-        f[index] = d_updatef(actualf, actualV, deltat);
-        f2[index] = d_updatef2(actualf2, actualV, deltat);
-        fCass[index] = d_updatefCass(actualfCass, actualV, deltat);
-        s[index] = d_updates(actuals, actualV, deltat);
-        r[index] = d_updater(actualr, actualV, deltat);
-
-        R_prime[index] = actualR_prime + deltat * d_dRprimedt(actualCa_SS, actualR_prime);
-        Ca_i[index] = actualCa_i + deltat * d_dCaidt(actualCa_i, actualCa_SR, actualCa_SS, actualV, actualNa_i);
-        Ca_SR[index] = actualCa_SR + deltat * d_dCaSRdt(actualCa_SR, actualCa_i, actualCa_SS, actualR_prime);
-        Ca_SS[index] = actualCa_SS + deltat * d_dCaSSdt(actualCa_SS, actualV, actuald, actualf, actualf2, actualfCass, actualCa_SR, actualR_prime, actualCa_i);
-        Na_i[index] = actualNa_i + deltat * d_dNaidt(actualV, actualm, actualh, actualj, actualNa_i, actualCa_i);
-        K_i[index] = actualK_i + deltat * d_dKidt(stim, actualV, actualK_i, actualr, actuals, actualX_r1, actualX_r2, actualX_s, actualNa_i);
     }
 }
 
-__global__ void parallelODE_MOSI_USV(real *V, real *X_r1, real *X_r2, real *X_s, real *m, real *h, real *j, real *d, real *f, real *f2, real *fCass, real *s, real *r, real *Ca_i, real *Ca_SR, real *Ca_SS, real *R_prime, real *Na_i, real *K_i, real *d_Rv, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__global__ void parallelODE_MOSI_USV(real *V, real *X_r1, real *X_r2, real *X_s, real *m, real *h, real *j, real *d, real *f, real *f2, real *fCass, real *s, real *r, real *Ca_i, real *Ca_SR, real *Ca_SS, real *R_prime, real *Na_i, real *K_i, unsigned int N, real timeStep, real deltat, real phi, int discS1xLimit, int discS1yLimit, int discS2xMin, int discS2xMax, int discS2yMin, int discS2yMax, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 

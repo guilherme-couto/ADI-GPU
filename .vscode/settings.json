@@ -5,7 +5,8 @@
         "ranges": "cpp",
         "chrono": "cpp",
         "numbers": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "complex": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

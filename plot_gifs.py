@@ -9,7 +9,7 @@ def create_gif(num_threads, dt, method, cell_model, dx, mode):
     frame = []
     frames = []
 
-    frames_file = f'./simulation-files/{precision}/{mode}/{dx}/{cell_model}/{method}/frames-{num_threads}-{dt}.txt'
+    frames_file = f'./simulation-files/{precision}/{cell_model}/{mode}/{method}/{dx}/frames-{num_threads}-{dt}.txt'
     f = open(frames_file, 'r')
     
     line = f.readline()
@@ -41,7 +41,10 @@ def create_gif(num_threads, dt, method, cell_model, dx, mode):
             for i in range(len(frame)):
                 frame[i] = [float(x) for x in frame[i]]
             
-            plt.imshow(frame, cmap='plasma', vmin=0.0, vmax=100)
+            if cell_model == 'AFHN':
+                plt.imshow(frame, cmap='plasma', vmin=0.0, vmax=100)
+            elif cell_model == 'TT2':
+                plt.imshow(frame, cmap='plasma', vmin=-90.0, vmax=50)
             plt.colorbar(label='V (mV)')
             plt.title(f'{mode} {cell_model} {method} dt = {dt} t = {times[frame_count]:.2f}')
             plt.xticks([])
@@ -74,7 +77,7 @@ def main():
                 for number_threads in numbers_threads:
                     for method in methods:
                         for dt in dts:
-                            create_gif(number_threads, f'{dt:.3f}', method, cell_model, dx, mode)
+                            create_gif(number_threads, dt, method, cell_model, dx, mode)
                             print(f'Gif created for {cell_model} with {number_threads} threads, {dt} dt, {dx} dx and {method} method ruuning on {mode}')
 
 if __name__ == '__main__':

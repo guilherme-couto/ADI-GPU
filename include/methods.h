@@ -2475,6 +2475,52 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     free(Na_i);
     free(K_i);
 
+    // For MOSI-2
+    real *d_V_2, *d_X_r1_2, *d_X_r2_2, *d_X_s_2, *d_m_2, *d_h_2, *d_j_2, *d_d_2, *d_f_2, *d_f2_2, *d_fCass_2, *d_s_2, *d_r_2, *d_Ca_i_2, *d_Ca_SR_2, *d_Ca_SS_2, *d_R_prime_2, *d_Na_i_2, *d_K_i_2;
+    cudaStatus1 = cudaMalloc(&d_V_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_X_r1_2, N * N * sizeof(real));
+    cudaStatus2 = cudaMalloc(&d_X_r2_2, N * N * sizeof(real));
+    cudaStatus3 = cudaMalloc(&d_X_s_2, N * N * sizeof(real));
+    cudaStatus4 = cudaMalloc(&d_m_2, N * N * sizeof(real));
+    cudaStatus5 = cudaMalloc(&d_h_2, N * N * sizeof(real));
+    cudaStatus6 = cudaMalloc(&d_j_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_d_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_f_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_f2_2, N * N * sizeof(real));
+    cudaStatus2 = cudaMalloc(&d_fCass_2, N * N * sizeof(real));
+    cudaStatus3 = cudaMalloc(&d_s_2, N * N * sizeof(real));
+    cudaStatus4 = cudaMalloc(&d_r_2, N * N * sizeof(real));
+    cudaStatus5 = cudaMalloc(&d_Ca_i_2, N * N * sizeof(real));
+    cudaStatus6 = cudaMalloc(&d_Ca_SR_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_Ca_SS_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_R_prime_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMalloc(&d_Na_i_2, N * N * sizeof(real));
+    cudaStatus2 = cudaMalloc(&d_K_i_2, N * N * sizeof(real));
+    cudaStatus1 = cudaMemcpy(d_V_2, d_V, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_X_r1_2, d_X_r1, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_X_r2_2, d_X_r2, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_X_s_2, d_X_s, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_m_2, d_m, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_h_2, d_h, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_j_2, d_j, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_d_2, d_d, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_f_2, d_f, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_f2_2, d_f2, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_fCass_2, d_fCass, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_s_2, d_s, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_r_2, d_r, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_Ca_i_2, d_Ca_i, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_Ca_SR_2, d_Ca_SR, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_Ca_SS_2, d_Ca_SS, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_R_prime_2, d_R_prime, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_Na_i_2, d_Na_i, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    cudaStatus1 = cudaMemcpy(d_K_i_2, d_K_i, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+    if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess)
+    {
+        printf("cudaMalloc MOSI2 failed!\n");
+        exit(EXIT_FAILURE);
+    }
+
     // Copy memory of diagonals from host to device
     cudaStatus1 = cudaMemcpy(d_la, la, N * sizeof(real), cudaMemcpyHostToDevice);
     cudaStatus2 = cudaMemcpy(d_lb, lb, N * sizeof(real), cudaMemcpyHostToDevice);
@@ -2501,8 +2547,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
     // Streams for parallel execution
     cudaStream_t stream1, stream2;
-    cudaStreamCreate(&stream1);
-    cudaStreamCreate(&stream2);
+    cudaStatus1 = cudaStreamCreateWithFlags(&stream1, cudaStreamNonBlocking);
+    cudaStatus1 = cudaStreamCreateWithFlags(&stream2, cudaStreamNonBlocking);
 
     int index;
     if (strcmp(method, "MOSI-ADI") == 0)
@@ -2627,7 +2673,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
                     elapsedMemCopy += finishPartial - startPartial;
                     elapsed4thMemCopy += finishPartial - startPartial;
 
-                    if (V[N - 1] >= 80)
+                    if (V[N - 1] >= 10)
                     {
                         S1Velocity = ((10 * (L - stim1xLimit)) / (time[timeStepCounter]));
                         S1VelocityTag = false;
@@ -2662,18 +2708,55 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
 
             // Resolve ODEs
             parallelODE_MOSI_2<<<GRID_SIZE, BLOCK_SIZE, 0, stream1>>>(d_V, d_X_r1, d_X_r2, d_X_s, d_m, d_h, d_j, d_d, d_f, d_f2, d_fCass, d_s, d_r, d_Ca_i, d_Ca_SR, d_Ca_SS, d_R_prime, d_Na_i, d_K_i, d_Rv, N, timeStep, deltat, phi, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
-            parallelODE_MOSI_USV<<<GRID_SIZE, BLOCK_SIZE, 0, stream2>>>(d_V, d_X_r1, d_X_r2, d_X_s, d_m, d_h, d_j, d_d, d_f, d_f2, d_fCass, d_s, d_r, d_Ca_i, d_Ca_SR, d_Ca_SS, d_R_prime, d_Na_i, d_K_i, d_Rv, N, timeStep, deltat, phi, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
-            cudaStreamSynchronize(stream1);
+            // cudaStreamSynchronize(stream1);
+            cudaDeviceSynchronize();
 
             // Finish measuring ODE execution time
             finishPartial = omp_get_wtime();
             elapsedODE += finishPartial - startPartial;
+
+            // Update state variables
+            startPartial = omp_get_wtime();
+            parallelODE_MOSI_USV<<<GRID_SIZE, BLOCK_SIZE, 0, stream2>>>(d_V, d_X_r1, d_X_r2, d_X_s, d_m, d_h, d_j, d_d, d_f, d_f2, d_fCass, d_s, d_r, d_Ca_i, d_Ca_SR, d_Ca_SS, d_R_prime, d_Na_i, d_K_i, N, timeStep, deltat, phi, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            cudaStreamSynchronize(stream2);
+            finishPartial = omp_get_wtime();
+            elapsedTranspose2 += finishPartial - startPartial; 
+
+            // Update state variables
+            // parallelODE_MOSI_USV<<<GRID_SIZE, BLOCK_SIZE, 0, stream2>>>(d_V_2, d_X_r1_2, d_X_r2_2, d_X_s_2, d_m_2, d_h_2, d_j_2, d_d_2, d_f_2, d_f2_2, d_fCass_2, d_s_2, d_r_2, d_Ca_i_2, d_Ca_SR_2, d_Ca_SS_2, d_R_prime_2, d_Na_i_2, d_K_i_2, N, timeStep, deltat, phi, discS1xLimit, discS1yLimit, discS2xMin, discS2xMax, discS2yMin, discS2yMax, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            // cudaStreamSynchronize(stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_X_r1, d_X_r1_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_X_r2, d_X_r2_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_X_s, d_X_s_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_m, d_m_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_h, d_h_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_j, d_j_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_d, d_d_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_f, d_f_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_f2, d_f2_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_fCass, d_fCass_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_s, d_s_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_r, d_r_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_Ca_i, d_Ca_i_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_Ca_SR, d_Ca_SR_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_Ca_SS, d_Ca_SS_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_R_prime, d_R_prime_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_Na_i, d_Na_i_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // cudaStatus1 = cudaMemcpyAsync(d_K_i, d_K_i_2, N * N * sizeof(real), cudaMemcpyDeviceToDevice, stream2);
+            // if (cudaStatus1 != cudaSuccess)
+            // {
+            //     printf("cudaMemcpy failed assynch device to device!\n");
+            //     exit(EXIT_FAILURE);
+            // }
 
             // Prepare right side of Thomas algorithm with explicit diffusion on j
             // Call the kernel
             startPartial = omp_get_wtime();
             prepareRighthandSide_jDiffusion<<<GRID_SIZE, BLOCK_SIZE, 0, stream1>>>(d_V, d_rightside, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
             cudaStreamSynchronize(stream1);
+            // cudaDeviceSynchronize();
+            
+            
             finishPartial = omp_get_wtime();
             elapsed1stRHS += finishPartial - startPartial;
 
@@ -2682,6 +2765,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             startPartial = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize, 0, stream1>>>(d_rightside, N, d_la, d_lb, d_lc);
             cudaStreamSynchronize(stream1);
+            // cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
 
@@ -2689,6 +2773,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             startPartial = omp_get_wtime();
             transposeDiagonalCol<<<GRID_SIZE, BLOCK_SIZE, 0, stream1>>>(d_rightside, d_V, N, N);
             cudaStreamSynchronize(stream1);
+            // cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsedTranspose += finishPartial - startPartial;
 
@@ -2697,6 +2782,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             startPartial = omp_get_wtime();
             prepareRighthandSide_iDiffusion<<<GRID_SIZE, BLOCK_SIZE, 0, stream1>>>(d_V, d_rightside, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaStreamSynchronize(stream1);
+            // cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndRHS += finishPartial - startPartial;
 
@@ -2705,6 +2791,7 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             startPartial = omp_get_wtime();
             parallelThomas<<<numBlocks, blockSize, 0, stream1>>>(d_rightside, N, d_la, d_lb, d_lc);
             cudaStreamSynchronize(stream1);
+            // cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;
 
@@ -2720,7 +2807,6 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
             elapsedMemCopy += finishPartial - startPartial;
             elapsed2ndMemCopy += finishPartial - startPartial;
 
-            
             // Save frames
             if (VWTag == false)
             {
@@ -2770,15 +2856,13 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
                     elapsedMemCopy += finishPartial - startPartial;
                     elapsed4thMemCopy += finishPartial - startPartial;
 
-                    if (V[N - 1] >= 80)
+                    if (V[N - 1] >= 10)
                     {
                         S1Velocity = ((10 * (L - stim1xLimit)) / (time[timeStepCounter]));
                         S1VelocityTag = false;
                     }
                 }
             }
-
-            cudaStreamSynchronize(stream2);
             
             // Update time step counter
             timeStepCounter++;
@@ -2816,6 +2900,8 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
     fprintf(fpInfos, "Total memory copy time: %lf seconds\n", elapsedMemCopy);
     
     fprintf(fpInfos, "\ntheta = %lf\n", theta);
+
+    fprintf(fpInfos, "\nElapsed update state variables = %lf\n", elapsedTranspose2);
 
     if (haveFibrosis)
     {
@@ -2896,6 +2982,26 @@ void runAllinGPU(bool options[], char *method, real deltat, int numberThreads, r
         cudaFree(d_lb2);
         cudaFree(d_lc2);
     }
+
+    cudaFree(d_V_2);
+    cudaFree(d_X_r1_2);
+    cudaFree(d_X_r2_2);
+    cudaFree(d_X_s_2);
+    cudaFree(d_m_2);
+    cudaFree(d_h_2);
+    cudaFree(d_j_2);
+    cudaFree(d_d_2);
+    cudaFree(d_f_2);
+    cudaFree(d_f2_2);
+    cudaFree(d_fCass_2);
+    cudaFree(d_s_2);
+    cudaFree(d_r_2);
+    cudaFree(d_Ca_i_2);
+    cudaFree(d_Ca_SR_2);
+    cudaFree(d_Ca_SS_2);
+    cudaFree(d_R_prime_2);
+    cudaFree(d_Na_i_2);
+    cudaFree(d_K_i_2);
     
     // Destroy streams
     cudaStreamDestroy(stream1);
