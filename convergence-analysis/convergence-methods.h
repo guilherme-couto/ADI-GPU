@@ -11,8 +11,9 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
 {
     // Number of steps
     L = 1.0;
+    T = 1.0;
     int N = round(L / delta_x) + 1;               // Spatial steps (square tissue)
-    int M = 100;                                  // Number of time steps
+    int M = round(T / delta_t) + 1;                // Number of time steps
 
     // Allocate and populate time array
     real *time;
@@ -85,8 +86,10 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     // File names
     char infosFileName[MAX_STRING_SIZE];
     sprintf(infosFileName, "infos-%.8lf-%.6lf.txt", delta_t, delta_x);
+    char lastFrameFileName[MAX_STRING_SIZE];
+    sprintf(lastFrameFileName, "last-%.8lf-%.6lf.txt", delta_t, delta_x);
 
-    // File pointers
+    // Infos file pointer
     FILE *fpInfos;
     sprintf(aux, "%s/%s", pathToSaveData, infosFileName);
     fpInfos = fopen(aux, "w");
@@ -337,8 +340,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     elapsed4thMemCopy += finishPartial - startPartial;
 
     // Save last frame
-    char lastFrameFileName[MAX_STRING_SIZE];
-    sprintf(lastFrameFileName, "last-%.8lf-%.6lf.txt", delta_t, delta_x);
     FILE *fpLast;
     sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
     fpLast = fopen(aux, "w");
