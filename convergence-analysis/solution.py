@@ -27,7 +27,7 @@ def run_all_simulations():
                 print('Simulation finished!\n')
 
 def solution(x, y, t):
-    return np.sin(pi*t) * np.sin(pi*x/L) * np.sin(pi*y/L)
+    return np.sin(pi*t) * np.cos(pi*x/L) * np.cos(pi*y/L)
 
 # Function to read files and save in a dictionary
 def read_files():
@@ -109,9 +109,9 @@ def calculate_slope(data, alpha):
             for dt in dts:
                 errors_2nd.append(data[method][theta][dt][dxs_2nd[dts.index(dt)]]['error'])
             for index in range(1, len(errors_2nd)):
-                slopes.append(np.log(errors_2nd[index] / errors_2nd[index-1]) / np.log(float(dts[index]) / float(dts[index-1])))
+                slopes.append(np.log10(errors_2nd[index] / errors_2nd[index-1]) / np.log10(float(dts[index]) / float(dts[index-1])))
 
-            slope_2nd = np.log(errors_2nd[-1] / errors_2nd[0]) / np.log(float(dts[-1]) / float(dts[0]))
+            slope_2nd = np.log10(errors_2nd[-1] / errors_2nd[0]) / np.log10(float(dts[-1]) / float(dts[0]))
             if method != 'theta-ADI':
                 print(f'For {method}: {slope_2nd} (mean: {np.mean(np.array(slopes))})')
                 analysis_file.write(f'For {method}: {slope_2nd} (mean: {np.mean(np.array(slopes))})\n')
@@ -122,9 +122,8 @@ def calculate_slope(data, alpha):
 
 # 1st order (dt = a*dx²)
 # 2nd order (dt = a*dx)
-alpha = 0.1
 thetas = ['0.50', '1.00']
-methods = ['theta-ADI']
+methods = ['theta-ADI', 'SSI-ADI']
 
 # Create directories
 if not os.path.exists(f'./simulation-files/simulation-graphs'):
@@ -145,42 +144,59 @@ if not os.path.exists(f'./simulation-files/simulation-analysis'):
 #     if len(values) == 10:
 #         break
 
-values = [0.000100, 0.000125, 0.000160, 0.000200, 0.000250, 0.000400, 0.000500, 0.000625, 0.000800, 0.001000]
+values = [0.00005, 0.00008, 0.0001, 0.00025, 0.0002, 0.0004, 0.0005, 0.000625]
+# values = [0.00001, 0.00005, 0.0001, 0.0005]
+alpha = 0.05
+# alpha = 0.01
+
+
 dts = [f'{value:.8f}' for value in values]
-# dxs_2nd = [f'{(value / alpha):.6f}' for value in values]
+dxs_2nd = [f'{(value / alpha):.6f}' for value in values]
 
-# values = [0.000100, 0.000125, 0.000160, 0.000200, 0.000250, 0.000400, 0.000500, 0.000625, 0.000800, 0.001000]
-dxs_2nd = [f'{value:.6f}' for value in values]
 
-# run_all_simulations()
+#dt_dx_analysis############################################################################################
+# os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
+# terminal_outputs = []
+# dt_dx_file = open('dt_dx_analysis.txt', 'w')
+# dts = [0.01, 0.005, 0.001, 0.0005, 0.00025, 0.0001, 0.00008, 0.00005, 0.00001]
+# for dt in [f'{value:.8f}' for value in dts]:
+#     dxs = [0.01, 0.008, 0.00625, 0.004, 0.002, 0.001, 0.0008, 0.000625, 0.0005, 0.0004, 0.0002, 0.0001, 0.00008, 0.00005]
+#     for dx in [f'{value:.6f}' for value in dxs]:
+#         simulation_line = f'./convergence theta-ADI {dt} {dx} 0.50'
+#         print(f'Executing {simulation_line}...')
+#         os.system(simulation_line)
+#         print('Simulation finished!\n')
+#         # Save in the terminal output the value of the first element of the output file
+#         output_file = open(f'./simulation-files/double/AFHN/theta-ADI/0.50/last-{dt}-{dx}.txt', 'r')
+#         first_element = output_file.readline().split()[0]
+#         output = f'For dt = {dt} and dx = {dx}, the first element is {first_element}'
+#         terminal_outputs.append(output)
+#         print(output)
+#         dt_dx_file.write(f'{output}\n')
+#         output_file.close()
+#         os.system('rm -f ./simulation-files/double/AFHN/theta-ADI/0.50/*.txt')
+
+
+# # Print the terminal outputs
+# for output in terminal_outputs:
+#     print(output)
+
+# exit() 
+##########################################################################################################
+
+
+
+run_all_simulations()
 
 analysis_file = open(f'./simulation-files/simulation-analysis/analysis.txt', 'w')
-# data = read_files()
+data = read_files()
 plot_path = f'./simulation-files/simulation-graphs/convergence-analysis.png'
-# plot_convergence(data, plot_path)
+plot_convergence(data, plot_path)
 
-# analysis_file.write('\n\n')
+analysis_file.write('\n\n')
 
-# calculate_slope(data, alpha)
+calculate_slope(data, alpha)
 
-# analysis_file.close()
+analysis_file.close()
 
-os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
-terminal_outputs = []
-dts = [0.01, 0.005, 0.001, 0.0005, 0.0001]
-for dt in [f'{value:.8f}' for value in dts]:
-    dxs = [0.0008, 0.000625, 0.0005, 0.0004, 0.00025, 0.0002, 0.0001, 0.00005]
-    for dx in [f'{value:.6f}' for value in dxs]:
-        simulation_line = f'./convergence theta-ADI {dt} {dx} 0.50'
-        print(f'Executing {simulation_line}...')
-        os.system(simulation_line)
-        print('Simulation finished!\n')
-        # Save in the terminal output the value of the first element of the output file
-        output_file = open(f'./simulation-files/double/AFHN/theta-ADI/0.50/last-{dt}-{dx}.txt', 'r')
-        first_element = output_file.readline().split()[0]
-        terminal_outputs.append(f'For dt = {dt} and dx = {dx}, the first element is {first_element}')
-        output_file.close()
 
-# Print the terminal outputs
-for output in terminal_outputs:
-    print(output)

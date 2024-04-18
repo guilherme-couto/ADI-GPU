@@ -1,8 +1,7 @@
-#ifndef CONVERGENCE_METHODS_H
-#define CONVERGENCE_METHODS_H
+#ifndef CONVERGENCE_METHODS_EXPLICIT_H
+#define CONVERGENCE_METHODS_EXPLICIT_H
 
 #include "../include/includes.h"
-#include "convergence-functions.h"
 
 real elapsed1stPart = 0.0, elapsed2ndPart = 0.0;
 
@@ -76,12 +75,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     sprintf(pathToSaveData, "%s/%s", pathToSaveData, method);
     sprintf(aux, "%s %s", command, pathToSaveData);
     system(aux);
-    if (strcmp(method, "theta-ADI") == 0)
-    {
-        sprintf(pathToSaveData, "%s/%.2lf", pathToSaveData, theta);
-        sprintf(aux, "%s %s", command, pathToSaveData);
-        system(aux);
-    }
 
     // File names
     char infosFileName[MAX_STRING_SIZE];
@@ -97,61 +90,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     // Save data rate
     int saverate = ceil(M / 100.0);    
 
-    // CUDA variables and allocation
-    real *d_V, *d_RHS, *d_Rv;
-    real *d_la, *d_lb, *d_lc;
-    cudaError_t cudaStatus1, cudaStatus2, cudaStatus3, cudaStatus5, cudaStatus6, cudaStatus7, cudaStatus8;
-    
-    cudaStatus1 = cudaMalloc(&d_V, N * N * sizeof(real));
-    cudaStatus2 = cudaMalloc(&d_RHS, N * N * sizeof(real));
-    cudaStatus5 = cudaMalloc(&d_Rv, N * N * sizeof(real));
-    cudaStatus6 = cudaMalloc(&d_la, N * sizeof(real));
-    cudaStatus7 = cudaMalloc(&d_lb, N * sizeof(real));
-    cudaStatus8 = cudaMalloc(&d_lc, N * sizeof(real));
-    if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess || cudaStatus5 != cudaSuccess || cudaStatus6 != cudaSuccess || cudaStatus7 != cudaSuccess || cudaStatus8 != cudaSuccess)
-    {
-        printf("cudaMalloc failed!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Copy memory from host to device of the matrices (2D arrays)
-    cudaStatus1 = cudaMemcpy(d_V, V, N * N * sizeof(real), cudaMemcpyHostToDevice);
-    if (cudaStatus1 != cudaSuccess)
-    {
-        printf("cudaMemcpy failed!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Copy memory of diagonals from host to device
-    cudaStatus1 = cudaMemcpy(d_la, la, N * sizeof(real), cudaMemcpyHostToDevice);
-    cudaStatus2 = cudaMemcpy(d_lb, lb, N * sizeof(real), cudaMemcpyHostToDevice);
-    cudaStatus3 = cudaMemcpy(d_lc, lc, N * sizeof(real), cudaMemcpyHostToDevice);
-    if (cudaStatus1 != cudaSuccess || cudaStatus2 != cudaSuccess || cudaStatus3 != cudaSuccess)
-    {
-        printf("cudaMemcpy failed!\n");
-        exit(EXIT_FAILURE);
-    }
-    printf("All cudaMallocs done!\n");
-
-    // Block and grid size
-    // For parallel Thomas
-    printf("N = %d\n", N);
-    int numBlocks = N / 100;
-    if (numBlocks == 0)
-        numBlocks = 1;
-    int blockSize = round(N / numBlocks) + 1;
-        
-    if (blockSize % 32 != 0)
-        blockSize = 32 * ((blockSize / 32) + 1);
-    
-    // For other kernels
-    int GRID_SIZE = ceil((N*N*1.0) / (BLOCK_SIZE*1.0));
-    if (GRID_SIZE == 0)
-        GRID_SIZE = 1;
-
-    printf("For 1st Part and Transpose -> Grid size %d, Block size %d\n", GRID_SIZE, BLOCK_SIZE);
-    printf("For 2nd Part -> Grid size: %d, Block size: %d\n", numBlocks, blockSize);
-
     /*--------------------
     --    theta ADI     --
     ----------------------*/
@@ -160,7 +98,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     printf("Time discretization M = %d!\n", M);
 
     int index;
-    if (strcmp(method, "theta-ADI") == 0)
+    if (strcmp(method, "FE") == 0)
     {
         // Start measuring total execution time
         startTotal = omp_get_wtime();
@@ -244,102 +182,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         elapsedTotal = finishTotal - startTotal;        
     }
 
-    else if (strcmp(method, "SSI-ADI") == 0)
-    {
-        // Start measuring total execution time
-        startTotal = omp_get_wtime();
-
-        while (timeStepCounter < M)
-        {
-            // Get time step
-            timeStep = time[timeStepCounter];
-
-            // Start measuring 1st part execution time
-            startPartial = omp_get_wtime();
-
-            // Solve the reaction and forcing term part
-            parallelRHSForcing_SSI<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_Rv, N, timeStep, delta_t, delta_x, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
-            cudaDeviceSynchronize();
-
-            // Finish measuring 1st part execution time
-            finishPartial = omp_get_wtime();
-            elapsedODE += finishPartial - startPartial;
-
-            // Prepare right side of Thomas algorithm with explicit diffusion on j
-            // Call the kernel
-            startPartial = omp_get_wtime();
-            prepareRighthandSide_jDiffusion<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
-            cudaDeviceSynchronize();     
-            finishPartial = omp_get_wtime();
-            elapsed1stRHS += finishPartial - startPartial;
-
-            // 1st: Implicit y-axis diffusion (lines)
-            // Call the kernel
-            startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_RHS, N, d_la, d_lb, d_lc);
-            cudaDeviceSynchronize();
-            finishPartial = omp_get_wtime();
-            elapsed1stThomas += finishPartial - startPartial;
-
-            // Call the transpose kernel
-            startPartial = omp_get_wtime();
-            transposeDiagonalCol<<<GRID_SIZE, BLOCK_SIZE>>>(d_RHS, d_V, N, N);
-            cudaDeviceSynchronize();
-            finishPartial = omp_get_wtime();
-            elapsedTranspose += finishPartial - startPartial;
-
-            // Prepare right side of Thomas algorithm with explicit diffusion on i
-            // Call the kernel
-            startPartial = omp_get_wtime();
-            prepareRighthandSide_iDiffusion<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
-            cudaDeviceSynchronize();
-            finishPartial = omp_get_wtime();
-            elapsed2ndRHS += finishPartial - startPartial;
-
-            // 2nd: Implicit x-axis diffusion (columns)                
-            // Call the kernel
-            startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_RHS, N, d_la, d_lb, d_lc);
-            cudaDeviceSynchronize();
-            finishPartial = omp_get_wtime();
-            elapsed2ndThomas += finishPartial - startPartial;
-
-            // Copy d_RHS to d_V
-            startPartial = omp_get_wtime();
-            cudaStatus1 = cudaMemcpy(d_V, d_RHS, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
-            if (cudaStatus1 != cudaSuccess)
-            {
-                printf("cudaMemcpy failed device to device!\n");
-                exit(EXIT_FAILURE);
-            }
-            finishPartial = omp_get_wtime();
-            elapsedMemCopy += finishPartial - startPartial;
-            elapsed2ndMemCopy += finishPartial - startPartial;
-
-            // Update time step counter
-            timeStepCounter++;
-        }
-
-        // 2nd Part execution
-        elapsed2ndPart = elapsed1stThomas + elapsed2ndThomas + elapsedTranspose + elapsed1stRHS + elapsed2ndRHS;
-        
-        // Finish measuring total execution time
-        finishTotal = omp_get_wtime();
-        elapsedTotal = finishTotal - startTotal;  
-    }
-    
-    //Copy memory from device to host of the matrices (2D arrays)
-    startPartial = omp_get_wtime();
-    cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
-    if (cudaStatus1 != cudaSuccess)
-    {
-        printf("cudaMemcpy failed!\n");
-        exit(EXIT_FAILURE);
-    }
-    finishPartial = omp_get_wtime();
-    elapsedMemCopy += finishPartial - startPartial;
-    elapsed4thMemCopy += finishPartial - startPartial;
-
     // Save last frame
     FILE *fpLast;
     sprintf(aux, "%s/%s", pathToSaveData, lastFrameFileName);
@@ -389,16 +231,8 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     free(la);
     free(lb);
     free(lc);
-
-    // Free memory from device
-    cudaFree(d_V);
-    cudaFree(d_Rv);
-    cudaFree(d_RHS);
-    cudaFree(d_la);
-    cudaFree(d_lb);
-    cudaFree(d_lc);
 }
 
 #endif // AFHN
 
-#endif // CONVERGENCE_METHODS_H
+#endif // CONVERGENCE_METHODS_EXPLICIT_H
