@@ -1,6 +1,5 @@
 #include "../include/includes.h"
 #include "convergence-methods.h"
-#include "convergence-methods-explicit.h"
 
 int main(int argc, char *argv[])
 {
