@@ -57,7 +57,7 @@ real stim2yMin = 0.0;             // Stimulation y min -> cm
 //##         Fibrosis parameters            ##
 //##                                        ##
 //############################################
-real fibrosisFactor = 0.2;        // Fibrosis rate -> dimensionless
+real fibrosisFactor = 1.0;        // Fibrosis rate -> dimensionless
 real fibrosisMinX = 0.7;          // Fibrosis x min -> cm
 real fibrosisMaxX = 1.3;          // Fibrosis x max -> cm
 real fibrosisMinY = 0.7;          // Fibrosis y min -> cm

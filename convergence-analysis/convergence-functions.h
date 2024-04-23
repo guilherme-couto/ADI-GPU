@@ -80,6 +80,47 @@ __global__ void parallelFE(real *d_V, real *d_Rv, unsigned int N, real t, real d
         d_Rv[index] = actualV + (phi * diffusion) - (delta_t * linearReaction) + (delta_t * forcingTerm);
     }
 }
+
+__global__ void cuThomasConstantBatch(real* la, real* lb, real* lc, real* d, unsigned long n) {
+
+	int rowCurrent;
+	int rowPrevious;
+
+	int rowAhead;
+
+	// set the current row
+	rowCurrent = threadIdx.x + blockDim.x*blockIdx.x;
+
+	int i = 0;
+
+	if ( rowCurrent < n ) 
+	{
+
+		//----- Forward Sweep
+		d[rowCurrent] = d[rowCurrent] / lb[i];
+
+		#pragma unroll
+		for (i = 1; i < n; ++i) {
+			rowPrevious = rowCurrent;
+			rowCurrent += n;
+
+			d[rowCurrent] = (d[rowCurrent] - la[i]*d[rowPrevious]) / (lb[i]);
+		
+		}
+
+
+		//----- Back Sub
+		d[rowCurrent] = d[rowCurrent];
+
+		#pragma unroll
+		for (i = n - 2; i >= 0; --i) {
+			rowAhead    = rowCurrent;
+			rowCurrent -= n;
+
+			d[rowCurrent] = d[rowCurrent] - lc[i] * d[rowAhead];
+		}
+	}
+}
 #endif
 
 #endif // CONVERGENCE_FUNCTIONS_H

@@ -146,6 +146,34 @@ void prefactorizationThomasAlgorithm(real* la, real* lb, real* lc, unsigned long
 	lb[rowCurrent] = lb[rowCurrent] - la[rowCurrent]*lc[rowPrevious];
 }
 
+void thomasFactorConstantBatch(real* la, real* lb, real* lc, unsigned long n) {
+
+	int rowCurrent;
+	int rowPrevious;
+
+	rowCurrent = 0;
+
+	// First row
+	lb[rowCurrent] = lb[rowCurrent];
+	lc[rowCurrent] = lc[rowCurrent] / lb[rowCurrent];
+
+	for (int i = 1; i < n - 1; ++i)	{
+		rowPrevious = rowCurrent;
+		rowCurrent  += 1;
+
+		la[rowCurrent] = la[rowCurrent];
+		lb[rowCurrent] = lb[rowCurrent] - la[rowCurrent]*lc[rowPrevious];
+		lc[rowCurrent] = lc[rowCurrent] / lb[rowCurrent];
+	}
+
+	rowPrevious = rowCurrent;
+	rowCurrent += 1;
+
+	// Last row
+	la[rowCurrent] = la[rowCurrent];
+	lb[rowCurrent] = lb[rowCurrent] - la[rowCurrent]*lc[rowPrevious];
+}
+
 
 // Adapted for 2nd order approximation
 real iDiffusion2nd(int i, int j, int N, real **V, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin)

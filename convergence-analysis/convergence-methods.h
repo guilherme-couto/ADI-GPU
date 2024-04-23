@@ -40,9 +40,6 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     real *lb = (real *)malloc(N * sizeof(real));
     real *lc = (real *)malloc(N * sizeof(real));
 
-    // Prefactorization
-    prefactorizationThomasAlgorithm(la, lb, lc, N);
-
     // Populate auxiliary arrays for Thomas algorithm
     real theta_implicit = 0.0;
     real theta_explicit = 0.0;
@@ -55,11 +52,14 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         populateDiagonalThomasAlgorithm(la, lb, lc, N, 0.5*phi);
     } 
 
+    // Prefactorization
+    thomasFactorConstantBatch(la, lb, lc, N);
+
     // Discritized limits of fibrotic area
-    int discFibxMax = round(fibrosisMaxX / deltax);
-    int discFibxMin = round(fibrosisMinX / deltax);
-    int discFibyMax = N - round(fibrosisMinY / deltay);
-    int discFibyMin = N - round(fibrosisMaxY / deltay);
+    int discFibxMax = -1;
+    int discFibxMin = 0;
+    int discFibyMax = -1;
+    int discFibyMin = 0;
     
     // Create directories
     char pathToSaveData[MAX_STRING_SIZE];
@@ -184,7 +184,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // Prepare right side of Thomas algorithm with explicit diffusion on j
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, (1.0 - theta), discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            prepareRighthandSide_jDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
             cudaDeviceSynchronize();     
             finishPartial = omp_get_wtime();
             elapsed1stRHS += finishPartial - startPartial;
@@ -192,7 +192,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // 1st: Implicit y-axis diffusion (lines)
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_RHS, N, d_la, d_lb, d_lc);
+            cuThomasConstantBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_RHS, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
@@ -207,7 +207,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // Prepare right side of Thomas algorithm with explicit diffusion on i
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, (1.0 - theta), discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            prepareRighthandSide_iDiffusion_theta<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndRHS += finishPartial - startPartial;
@@ -215,7 +215,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_RHS, N, d_la, d_lb, d_lc);
+            cuThomasConstantBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_RHS, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;
