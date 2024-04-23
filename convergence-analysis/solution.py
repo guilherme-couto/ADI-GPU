@@ -13,29 +13,19 @@ def solution(x, y, t):
 def run_all_simulations(method, dts, dxs, thetas, number_of_threads):
     
     # Compile (sm_80 for A100-Ampere; sm_86 for RTX3050-Ampere; sm_89 for RTX 4070-Ada)
-    if method == 'theta-ADI' or method == 'SSI-ADI':
-        os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
-    elif method == 'FE':
-        os.system('gcc -fopenmp -lpthread convergence_exp.c -o convergence_exp -O3 -lm -w')
+    os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
 
     for i in range(len(dts)):
         dx = dxs[i]
         dt = dts[i]
         tts = []
         
-        if method != 'FE':
-            if method != 'theta-ADI':
-                tts = ['0.00']
-            else:
-                tts = thetas 
-            for theta in tts:
-                simulation_line = f'./convergence {method} {dt} {dx} {theta}'
-                print(f'Executing {simulation_line}...')
-                os.system(simulation_line)
-                print('Simulation finished!\n')
-    
-        elif method == 'FE':
-            simulation_line = f'./convergence_exp {method} {dt} {dx} {number_of_threads}'
+        if method != 'theta-ADI':
+            tts = ['0.00']
+        else:
+            tts = thetas 
+        for theta in tts:
+            simulation_line = f'./convergence {method} {dt} {dx} {theta}'
             print(f'Executing {simulation_line}...')
             os.system(simulation_line)
             print('Simulation finished!\n')
@@ -135,7 +125,6 @@ def calculate_slope(data, alpha, methods, dts, dxs, thetas):
 # 2nd order (dt = a*dx)
 thetas = ['0.50', '1.00']
 methods = ['theta-ADI', 'SSI-ADI', 'FE']
-number_of_threads = 6
 
 # Create directories
 if not os.path.exists(f'./simulation-files/simulation-graphs'):
@@ -167,19 +156,22 @@ dxs = [f'{(value / alpha):.6f}' for value in values]
 
 
 #dt_dx_analysis############################################################################################
-# os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
-os.system('gcc -fopenmp -lpthread convergence_exp.c -o convergence_exp -O3 -lm -w')
+os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
+
 terminal_outputs = []
 dt_dx_file = open('dt_dx_analysis_exp.txt', 'w')
 dts = [0.01, 0.005, 0.001, 0.0005, 0.00025, 0.0001, 0.00008, 0.00005, 0.00001]
+
 for dt in [f'{value:.8f}' for value in dts]:
     dxs = [0.01, 0.008, 0.00625, 0.004, 0.002, 0.001, 0.0008, 0.000625, 0.0005, 0.0004, 0.0002, 0.0001, 0.00008, 0.00005]
+
     for dx in [f'{value:.6f}' for value in dxs]:
         # simulation_line = f'./convergence theta-ADI {dt} {dx} 0.50'
-        simulation_line = f'./convergence_exp theta-ADI {dt} {dx} {number_of_threads}'
+        simulation_line = f'./convergence FE {dt} {dx} 0'
         print(f'Executing {simulation_line}...')
         os.system(simulation_line)
         print('Simulation finished!\n')
+
         # Save in the terminal output the value of the first element of the output file
         # output_file = open(f'./simulation-files/double/AFHN/theta-ADI/0.50/last-{dt}-{dx}.txt', 'r')
         output_file = open(f'./simulation-files/double/AFHN/FE/last-{dt}-{dx}.txt', 'r')
@@ -189,6 +181,7 @@ for dt in [f'{value:.8f}' for value in dts]:
         print(output)
         dt_dx_file.write(f'{output}\n')
         output_file.close()
+        
         # os.system('rm -f ./simulation-files/double/AFHN/theta-ADI/0.50/*.txt')
         os.system('rm -f ./simulation-files/double/AFHN/FE/*.txt')
 

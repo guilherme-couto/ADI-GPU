@@ -62,6 +62,24 @@ __global__ void parallelRHSForcing_SSI(real *d_V, real *d_Rv, unsigned int N, re
         d_Rv[index] = delta_t * tildeRHS_V;
     }
 }
+
+__global__ void parallelFE(real *d_V, real *d_Rv, unsigned int N, real t, real delta_t, real delta_x, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N*N)
+    {
+        unsigned int i = index / N;
+        unsigned int j = index % N;
+        
+        real actualV = d_V[index];
+        real diffusion = d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor) + d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+        real linearReaction = d_G*actualV;
+        real forcingTerm = d_forcingTerm(i, j, delta_x, t);
+
+        d_Rv[index] = actualV + (phi * diffusion) - (delta_t * linearReaction) + (delta_t * forcingTerm);
+    }
+}
 #endif
 
 #endif // CONVERGENCE_FUNCTIONS_H

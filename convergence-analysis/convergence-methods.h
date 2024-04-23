@@ -328,6 +328,51 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
         elapsedTotal = finishTotal - startTotal;  
     }
     
+    else if (strcmp(method, "FE") == 0)
+    {
+        // Start measuring total execution time
+        startTotal = omp_get_wtime();
+
+        while (timeStepCounter < M)
+        {
+            // Get time step
+            timeStep = time[timeStepCounter];
+
+            // Start measuring 1st part execution time
+            startPartial = omp_get_wtime();
+
+            // Solve the reaction and forcing term part
+            parallelFE<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_Rv, N, timeStep, delta_t, delta_x, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            cudaDeviceSynchronize();
+
+            // Finish measuring 1st part execution time
+            finishPartial = omp_get_wtime();
+            elapsedODE += finishPartial - startPartial;
+
+            // Copy d_Rv to d_V
+            startPartial = omp_get_wtime();
+            cudaStatus1 = cudaMemcpy(d_V, d_Rv, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+            if (cudaStatus1 != cudaSuccess)
+            {
+                printf("cudaMemcpy failed device to device!\n");
+                exit(EXIT_FAILURE);
+            }
+            finishPartial = omp_get_wtime();
+            elapsedMemCopy += finishPartial - startPartial;
+            elapsed2ndMemCopy += finishPartial - startPartial;
+
+            // Update time step counter
+            timeStepCounter++;
+        }
+
+        // 2nd Part execution
+        elapsed2ndPart = elapsed1stThomas + elapsed2ndThomas + elapsedTranspose + elapsed1stRHS + elapsed2ndRHS;
+        
+        // Finish measuring total execution time
+        finishTotal = omp_get_wtime();
+        elapsedTotal = finishTotal - startTotal; 
+    }
+
     //Copy memory from device to host of the matrices (2D arrays)
     startPartial = omp_get_wtime();
     cudaStatus1 = cudaMemcpy(V, d_V, N * N * sizeof(real), cudaMemcpyDeviceToHost);
