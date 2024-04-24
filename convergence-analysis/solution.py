@@ -124,7 +124,7 @@ def calculate_slope(data, alpha, methods, dts, dxs, thetas):
 # 1st order (dt = a*dx²)
 # 2nd order (dt = a*dx)
 thetas = ['0.50']
-methods = ['theta-ADI']
+methods = ['SSI-ADI']
 
 # Create directories
 if not os.path.exists(f'./simulation-files/simulation-graphs'):
@@ -145,7 +145,8 @@ if not os.path.exists(f'./simulation-files/simulation-analysis'):
 #     if len(values) == 10:
 #         break
 
-values = [0.00005, 0.00008, 0.0001, 0.00025, 0.0002, 0.0004, 0.0005, 0.000625]
+# values = [0.00005, 0.00008, 0.0001, 0.00025, 0.0002, 0.0004, 0.0005, 0.000625]
+values = [0.00005, 0.0001, 0.0002, 0.0004]
 # values = [0.00001, 0.00005, 0.0001, 0.0005]
 alpha = 0.05
 # alpha = 0.01
@@ -196,8 +197,8 @@ dxs = [f'{(value / alpha):.6f}' for value in values]
 
 
 
-# for method in methods:
-#     run_all_simulations(method, dts, dxs, thetas)
+for method in methods:
+    run_all_simulations(method, dts, dxs, thetas)
 
 analysis_file = open(f'./simulation-files/simulation-analysis/analysis.txt', 'w')
 data = read_files(methods, dts, dxs, thetas)

@@ -49,7 +49,8 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
     }
     else if (strcmp(method, "SSI-ADI") == 0)
     {
-        populateDiagonalThomasAlgorithm(la, lb, lc, N, 0.5*phi);
+        phi = 0.5 * phi;
+        populateDiagonalThomasAlgorithm(la, lb, lc, N, phi);
     } 
 
     // Prefactorization
@@ -267,7 +268,7 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             startPartial = omp_get_wtime();
 
             // Solve the reaction and forcing term part
-            parallelRHSForcing_SSI<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_Rv, N, timeStep, delta_t, delta_x, phi, theta, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
+            parallelRHSForcing_SSI<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_Rv, N, timeStep, delta_t, delta_x, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
             cudaDeviceSynchronize();
 
             // Finish measuring 1st part execution time
@@ -277,18 +278,32 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             // Prepare right side of Thomas algorithm with explicit diffusion on j
             // Call the kernel
             startPartial = omp_get_wtime();
-            prepareRighthandSide_jDiffusion<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            prepareRHS<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
             cudaDeviceSynchronize();     
             finishPartial = omp_get_wtime();
             elapsed1stRHS += finishPartial - startPartial;
 
+            // Call the transpose kernel
+            startPartial = omp_get_wtime();
+            transposeDiagonalCol<<<GRID_SIZE, BLOCK_SIZE>>>(d_RHS, d_V, N, N);
+            cudaDeviceSynchronize();
+            finishPartial = omp_get_wtime();
+            elapsedTranspose += finishPartial - startPartial;
+            
             // 1st: Implicit y-axis diffusion (lines)
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_RHS, N, d_la, d_lb, d_lc);
+            cuThomasConstantBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_V, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed1stThomas += finishPartial - startPartial;
+
+            // Call the kernel
+            startPartial = omp_get_wtime();
+            prepareRHS<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor); 
+            cudaDeviceSynchronize();     
+            finishPartial = omp_get_wtime();
+            elapsed1stRHS += finishPartial - startPartial;
 
             // Call the transpose kernel
             startPartial = omp_get_wtime();
@@ -297,33 +312,25 @@ void runSimulation(char *method, real delta_t, real delta_x, real theta)
             finishPartial = omp_get_wtime();
             elapsedTranspose += finishPartial - startPartial;
 
-            // Prepare right side of Thomas algorithm with explicit diffusion on i
-            // Call the kernel
-            startPartial = omp_get_wtime();
-            prepareRighthandSide_iDiffusion<<<GRID_SIZE, BLOCK_SIZE>>>(d_V, d_RHS, d_Rv, N, phi, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor);
-            cudaDeviceSynchronize();
-            finishPartial = omp_get_wtime();
-            elapsed2ndRHS += finishPartial - startPartial;
-
             // 2nd: Implicit x-axis diffusion (columns)                
             // Call the kernel
             startPartial = omp_get_wtime();
-            parallelThomas<<<numBlocks, blockSize>>>(d_RHS, N, d_la, d_lb, d_lc);
+            cuThomasConstantBatch<<<numBlocks, blockSize>>>(d_la, d_lb, d_lc, d_V, N);
             cudaDeviceSynchronize();
             finishPartial = omp_get_wtime();
             elapsed2ndThomas += finishPartial - startPartial;
 
             // Copy d_RHS to d_V
-            startPartial = omp_get_wtime();
-            cudaStatus1 = cudaMemcpy(d_V, d_RHS, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
-            if (cudaStatus1 != cudaSuccess)
-            {
-                printf("cudaMemcpy failed device to device!\n");
-                exit(EXIT_FAILURE);
-            }
-            finishPartial = omp_get_wtime();
-            elapsedMemCopy += finishPartial - startPartial;
-            elapsed2ndMemCopy += finishPartial - startPartial;
+            // startPartial = omp_get_wtime();
+            // cudaStatus1 = cudaMemcpy(d_V, d_RHS, N * N * sizeof(real), cudaMemcpyDeviceToDevice);
+            // if (cudaStatus1 != cudaSuccess)
+            // {
+            //     printf("cudaMemcpy failed device to device!\n");
+            //     exit(EXIT_FAILURE);
+            // }
+            // finishPartial = omp_get_wtime();
+            // elapsedMemCopy += finishPartial - startPartial;
+            // elapsed2ndMemCopy += finishPartial - startPartial;
 
             // Update time step counter
             timeStepCounter++;

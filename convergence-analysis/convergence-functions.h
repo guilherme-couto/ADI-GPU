@@ -39,7 +39,7 @@ __global__ void parallelRHSForcing_theta(real *d_V, real *d_Rv, unsigned int N, 
     }
 }
 
-__global__ void parallelRHSForcing_SSI(real *d_V, real *d_Rv, unsigned int N, real t, real delta_t, real delta_x, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+__global__ void parallelRHSForcing_SSI(real *d_V, real *d_Rv, unsigned int N, real t, real delta_t, real delta_x, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
 {
     unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -54,7 +54,7 @@ __global__ void parallelRHSForcing_SSI(real *d_V, real *d_Rv, unsigned int N, re
         
         real actualRHS_V = d_forcingTerm(i, j, delta_x, t) - (d_G*actualV/d_Cm);
         
-        Vtilde = actualV + (0.5 * delta_t * actualRHS_V) + (0.5 * phi * diffusion);
+        Vtilde = actualV + (0.5 * delta_t * actualRHS_V) + (((delta_t * d_sigma) / (2*delta_x*delta_x*d_chi*d_Cm)) * diffusion);
 
         real tildeRHS_V = d_forcingTerm(i, j, delta_x, t+(0.5*delta_t)) - (d_G*Vtilde/d_Cm);
 
@@ -131,6 +131,30 @@ __global__ void prepareRHS_theta(real *d_V, real *d_rightside, real *d_Rv, unsig
         int i = index / N;
         int j = index % N;
         d_rightside[index] = d_V[index] + ((1-theta) * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
+
+__global__ void prepareRHS(real *d_V, real *d_RHS, real *d_Rv, unsigned int N, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N * N)
+    {
+        int i = index / N;
+        int j = index % N;
+        d_RHS[index] = d_V[index] + (phi * d_iDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
+
+__global__ void prepareRHS2(real *d_V, real *d_RHS, real *d_Rv, unsigned int N, real phi, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N * N)
+    {
+        int i = index / N;
+        int j = index % N;
+        d_RHS[index] = d_V[index] + (phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
     }
 }
 #endif
