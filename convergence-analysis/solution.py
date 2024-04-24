@@ -13,7 +13,7 @@ def solution(x, y, t):
 def run_all_simulations(method, dts, dxs, thetas):
     
     # Compile (sm_80 for A100-Ampere; sm_86 for RTX3050-Ampere; sm_89 for RTX 4070-Ada)
-    #os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
+    os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
 
     for i in range(len(dts)):
         dx = dxs[i]
@@ -123,7 +123,7 @@ def calculate_slope(data, alpha, methods, dts, dxs, thetas):
 
 # 1st order (dt = a*dx²)
 # 2nd order (dt = a*dx)
-thetas = ['0.50', '1.00']
+thetas = ['0.50']
 methods = ['theta-ADI']
 
 # Create directories
@@ -158,46 +158,46 @@ dxs = [f'{(value / alpha):.6f}' for value in values]
 #dt_dx_analysis############################################################################################
 # os.system('nvcc -Xcompiler -fopenmp -lpthread -lcusparse convergence.cu -o convergence -O3 -w')
 
-terminal_outputs = []
-dt_dx_file = open('dt_dx_analysis.txt', 'w')
-# dt_dx_file = open('dt_dx_analysis_exp.txt', 'w')
-dts = [0.01, 0.005, 0.001, 0.0005, 0.00025, 0.0001, 0.00008, 0.00005, 0.00001]
+# terminal_outputs = []
+# dt_dx_file = open('dt_dx_analysis.txt', 'w')
+# # dt_dx_file = open('dt_dx_analysis_exp.txt', 'w')
+# dts = [0.01, 0.005, 0.001, 0.0005, 0.00025, 0.0001, 0.00008, 0.00005, 0.00001]
 
-for dt in [f'{value:.8f}' for value in dts]:
-    dxs = [0.01, 0.008, 0.00625, 0.004, 0.002, 0.001, 0.0008, 0.000625, 0.0005, 0.0004, 0.0002, 0.0001, 0.00008, 0.00005]
+# for dt in [f'{value:.8f}' for value in dts]:
+#     dxs = [0.01, 0.008, 0.00625, 0.004, 0.002, 0.001, 0.0008, 0.000625, 0.0005, 0.0004, 0.0002, 0.0001, 0.00008, 0.00005]
 
-    for dx in [f'{value:.6f}' for value in dxs]:
-        simulation_line = f'./convergence theta-ADI {dt} {dx} 0.50'
-        # simulation_line = f'./convergence FE {dt} {dx} 0'
-        print(f'Executing {simulation_line}...')
-        os.system(simulation_line)
-        print('Simulation finished!\n')
+#     for dx in [f'{value:.6f}' for value in dxs]:
+#         simulation_line = f'./convergence theta-ADI {dt} {dx} 0.50'
+#         # simulation_line = f'./convergence FE {dt} {dx} 0'
+#         print(f'Executing {simulation_line}...')
+#         os.system(simulation_line)
+#         print('Simulation finished!\n')
 
-        # Save in the terminal output the value of the first element of the output file
-        output_file = open(f'./simulation-files/double/AFHN/theta-ADI/0.50/last-{dt}-{dx}.txt', 'r')
-        # output_file = open(f'./simulation-files/double/AFHN/FE/last-{dt}-{dx}.txt', 'r')
-        first_element = output_file.readline().split()[0]
-        output = f'For dt = {dt} and dx = {dx}, the first element is {first_element}'
-        terminal_outputs.append(output)
-        print(output)
-        dt_dx_file.write(f'{output}\n')
-        output_file.close()
+#         # Save in the terminal output the value of the first element of the output file
+#         output_file = open(f'./simulation-files/double/AFHN/theta-ADI/0.50/last-{dt}-{dx}.txt', 'r')
+#         # output_file = open(f'./simulation-files/double/AFHN/FE/last-{dt}-{dx}.txt', 'r')
+#         first_element = output_file.readline().split()[0]
+#         output = f'For dt = {dt} and dx = {dx}, the first element is {first_element}'
+#         terminal_outputs.append(output)
+#         print(output)
+#         dt_dx_file.write(f'{output}\n')
+#         output_file.close()
         
-        os.system('rm -f ./simulation-files/double/AFHN/theta-ADI/0.50/*.txt')
-        # os.system('rm -f ./simulation-files/double/AFHN/FE/*.txt')
+#         os.system('rm -f ./simulation-files/double/AFHN/theta-ADI/0.50/*.txt')
+#         # os.system('rm -f ./simulation-files/double/AFHN/FE/*.txt')
 
 
-# Print the terminal outputs
-for output in terminal_outputs:
-    print(output)
+# # Print the terminal outputs
+# for output in terminal_outputs:
+#     print(output)
 
-exit() 
+# exit() 
 ##########################################################################################################
 
 
 
-for method in methods:
-    run_all_simulations(method, dts, dxs, thetas)
+# for method in methods:
+#     run_all_simulations(method, dts, dxs, thetas)
 
 analysis_file = open(f'./simulation-files/simulation-analysis/analysis.txt', 'w')
 data = read_files(methods, dts, dxs, thetas)

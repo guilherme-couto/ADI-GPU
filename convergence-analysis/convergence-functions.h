@@ -121,6 +121,18 @@ __global__ void cuThomasConstantBatch(real* la, real* lb, real* lc, real* d, uns
 		}
 	}
 }
+
+__global__ void prepareRHS_theta(real *d_V, real *d_rightside, real *d_Rv, unsigned int N, real phi, real theta, int discFibxMax, int discFibxMin, int discFibyMax, int discFibyMin, real fibrosisFactor)
+{
+    unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (index < N * N)
+    {
+        int i = index / N;
+        int j = index % N;
+        d_rightside[index] = d_V[index] + ((1-theta) * phi * d_jDiffusion(i, j, index, N, d_V, discFibxMax, discFibxMin, discFibyMax, discFibyMin, fibrosisFactor)) + (0.5 * d_Rv[index]);
+    }
+}
 #endif
 
 #endif // CONVERGENCE_FUNCTIONS_H
