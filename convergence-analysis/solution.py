@@ -56,12 +56,17 @@ def read_files(methods, dts, dxs, thetas):
                 for line in open(filename, 'r'):
                     line = line.split()
                     for j in range(len(line)):
-                        simulation_minus_solution.append(float(line[j]) - solution(j*float(dx), i*float(dx), T))
+                        # simulation_minus_solution.append(float(line[j]) - solution(j*float(dx), i*float(dx), T))
+                        simulation_minus_solution.append(abs(float(line[j]) - solution(j*float(dx), i*float(dx), T)))
                     i += 1
                 
                 # Calculate the error with norm 2
                 number_of_points = len(simulation_minus_solution)
-                error = (np.linalg.norm(np.array(simulation_minus_solution))) / (np.sqrt(number_of_points)) # RMSE
+                # error = (np.linalg.norm(np.array(simulation_minus_solution))) / (np.sqrt(number_of_points)) # RMSE
+                aux_sum = 0
+                for element in simulation_minus_solution:
+                    aux_sum = aux_sum + (element*element)
+                error = np.sqrt(float(dt)*float(dt)*aux_sum)
                 data[method][theta][dt][dx]['error'] = error
                 if method != 'theta-ADI':
                     print(f'Error for method = {method}, dx = {dx} and dt = {dt}: {error}') 
